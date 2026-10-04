@@ -58,7 +58,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .brand .co{font-family:var(--f-display);font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-size:12px}
 .brand h1{font-size:24px;font-weight:700;line-height:1.05}
-.who{display:flex;align-items:center;gap:10px}
+.who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
 .role{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.1em;padding:3px 8px;border-radius:3px;background:var(--accent-soft);color:var(--accent);text-transform:uppercase}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
 .tabs button{font:inherit;font-family:var(--f-display);font-weight:600;font-size:16px;letter-spacing:.03em;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 12px;cursor:pointer;white-space:nowrap}
@@ -168,6 +168,15 @@ svg text{font-family:var(--f-body)}
 .scanmodal .t{color:#fff;font-family:var(--f-display);font-size:20px;font-weight:700;letter-spacing:.04em}
 .scanmodal .h{color:#c9d3de;font-size:14px;text-align:center;max-width:440px}
 .scanmodal .btn{min-width:140px}
+.scanmodal .aim::after{content:"";position:absolute;left:6%;right:6%;height:2px;background:#4ade80;box-shadow:0 0 12px #4ade80;top:10%;animation:scanline 1.8s ease-in-out infinite alternate}
+@keyframes scanline{from{top:8%}to{top:92%}}
+.scanok{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(5,10,18,.55);padding:16px}
+.scanok .box{background:#ffffff;color:#14532d;border-radius:14px;padding:24px 28px;min-width:260px;max-width:90vw;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:pop .25s ease-out}
+.scanok .ck{width:64px;height:64px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center}
+.scanok .tt{font-family:var(--f-display);font-weight:700;font-size:24px;letter-spacing:.03em}
+.scanok .vv{font-family:var(--f-mono);font-size:17px;color:#18212b;overflow-wrap:anywhere}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.scanmodal .aim::after{animation:none;top:50%}.scanok .box{animation:none}}
 .demo-tag{background:var(--hold-bg);color:var(--hold)}
 </style>
 </head>
@@ -478,9 +487,10 @@ function setScanValue(target,v){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v1.3";
+const APP_VERSION="v1.4";
 let LIVE=null;
 async function startLive(target){
+  unlockAudio();
   const m=document.createElement("div");m.className="scanmodal";m.id="scanmodal";
   m.innerHTML=`<div class="t">${target==="pileId"?"Scan charging pile ID":"Scan CCTV QR ID"}</div>
     <div id="reader"><video id="scan-video" playsinline muted autoplay></video><div class="aim"></div></div>
@@ -507,23 +517,45 @@ async function startLive(target){
   const cv=document.createElement("canvas"),cx=cv.getContext("2d",{willReadFrequently:true});
   const det=("BarcodeDetector" in window)?(()=>{try{return new BarcodeDetector()}catch(e){return null}})():null;
   LIVE={stream,running:true,frame:0,target,video};
+  const cropTo=(W,H,frac,max)=>{const side=Math.min(W,H)*frac,sz=Math.round(Math.min(max,side));cv.width=sz;cv.height=sz;cx.drawImage(video,(W-side)/2,(H-side)/2,side,side,0,0,sz,sz);return sz};
+  const fullTo=(W,H,max)=>{const sc=Math.min(1,max/Math.max(W,H));cv.width=Math.round(W*sc);cv.height=Math.round(H*sc);cx.drawImage(video,0,0,cv.width,cv.height)};
+  const tryJsQR=(inv)=>{if(!window.jsQR)return null;const r=jsQR(cx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height,{inversionAttempts:inv});return r&&r.data?r.data:null};
+  const tryZX=()=>{const rd=zxReader();if(!rd)return null;const Z=window.ZXing;try{const res=rd.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv))));return res?res.getText():null}catch(e){return null}};
   const tick=async()=>{
     if(!LIVE||!LIVE.running)return;
-    if(video.readyState>=2&&video.videoWidth){
-      LIVE.frame++;if(LIVE.frame%10===0){const st=$("#scan-stat");if(st)st.textContent=`${APP_VERSION} · camera ${video.videoWidth}×${video.videoHeight} · scanning`}
-      let txt=null;
-      if(det){try{const r=await det.detect(video);if(r&&r[0])txt=r[0].rawValue}catch(e){}}
-      if(!txt){
-        const W=video.videoWidth,H=video.videoHeight,side=Math.min(W,H)*.8,sx=(W-side)/2,sy=(H-side)/2,sz=Math.min(720,side);
-        cv.width=sz;cv.height=sz;cx.drawImage(video,sx,sy,side,side,0,0,sz,sz);
-        if(window.jsQR){const r=jsQR(cx.getImageData(0,0,sz,sz).data,sz,sz,{inversionAttempts:LIVE.frame%2?"dontInvert":"onlyInvert"});if(r&&r.data)txt=r.data}
-        if(!txt&&LIVE.frame%3===0){const rd=zxReader();if(rd){const Z=window.ZXing;try{const res=rd.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv))));if(res)txt=res.getText()}catch(e){}}}
+    let txt=null;
+    try{
+      if(video.readyState>=2&&video.videoWidth){
+        const W=video.videoWidth,H=video.videoHeight,f=++LIVE.frame;
+        if(f%10===0){const st=$("#scan-stat");if(st)st.textContent=`${APP_VERSION} · camera ${W}×${H} · scanning… ${f}`}
+        if(det){try{const r=await det.detect(video);if(r&&r[0])txt=r[0].rawValue}catch(e){}}
+        if(!txt){
+          const mode=f%4;
+          if(mode===0){cropTo(W,H,.8,640);txt=tryJsQR("attemptBoth")}
+          else if(mode===1){cropTo(W,H,.55,560);txt=tryJsQR("dontInvert")}
+          else if(mode===2){cropTo(W,H,.8,800);txt=tryZX()}
+          else{fullTo(W,H,900);txt=tryJsQR("dontInvert")||(f%8===3?tryZX():null)}
+        }
       }
-      if(txt){if(navigator.vibrate)navigator.vibrate(80);stopLive();setScanValue(target,txt);toast("Scanned: "+String(txt).trim());return}
-    }
-    setTimeout(tick,120);
+    }catch(e){LIVE.err=(LIVE.err||0)+1;const st=$("#scan-stat");if(st)st.textContent=`${APP_VERSION} · error: ${e&&e.message||e}`}
+    if(txt){scanSuccess(target,txt);return}
+    if(LIVE&&LIVE.running)setTimeout(tick,90);
   };
   LIVE.tick=tick;tick();
+}
+let AC=null;
+function unlockAudio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume()}catch(e){}}
+function beep(){try{if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();o.type="square";o.frequency.value=1800;g.gain.value=.08;o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+.12)}catch(e){}}
+function scanSuccess(target,txt){
+  const v=String(txt).trim();
+  beep();if(navigator.vibrate)navigator.vibrate(120);
+  stopLive();
+  const ov=document.createElement("div");ov.className="scanok";ov.setAttribute("role","alertdialog");ov.setAttribute("aria-label","Scan successful");
+  ov.innerHTML=`<div class="box"><div class="ck"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div class="tt">Scan berjaya</div><div class="vv"></div><div style="font-size:13px;color:#5d6b7a">${target==="pileId"?"Charging pile ID":"CCTV QR ID"}</div></div>`;
+  ov.querySelector(".vv").textContent=v;
+  document.body.append(ov);
+  setScanValue(target,v);
+  const close=()=>ov.remove();ov.addEventListener("click",close);setTimeout(close,1600);
 }
 async function snapLive(){
   if(!LIVE||!LIVE.video)return;const v=LIVE.video,target=LIVE.target;
@@ -532,7 +564,7 @@ async function snapLive(){
   const btn=$("#snap-btn");btn.disabled=true;btn.textContent="Reading…";LIVE.running=false;
   const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.92));
   let code=null;try{code=await decodeQR(blob)}catch(e){}
-  if(code){stopLive();setScanValue(target,code);toast("Scanned: "+String(code).trim());return}
+  if(code){scanSuccess(target,code);return}
   btn.disabled=false;btn.textContent="Snap";$("#scan-hint").textContent="No code found in that shot. Move closer so the code fills the box, keep it sharp, and try again.";
   LIVE.running=true;setTimeout(()=>LIVE&&LIVE.tick&&LIVE.tick(),100);
 }
