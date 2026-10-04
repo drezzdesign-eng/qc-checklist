@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d4f91">
+<title>C Zero QC Inspection</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+/* Layout: app bar + role tabs over a single working column; QC form rows, data tables, KPI strip for admin */
+:root{
+  --bg:#eef1f4; --paper:#ffffff; --ink:#18212b; --muted:#5d6b7a; --line:#d5dce3; --soft:#f5f7f9;
+  --accent:#1d4f91; --accent-ink:#ffffff; --accent-soft:#e3ebf6;
+  --ok:#1f7a4a; --ok-bg:#e3f3ea; --ng:#b3261e; --ng-bg:#fbe5e3; --hold:#a35a00; --hold-bg:#fdf0dc;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"Barlow",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --paper:#18202a; --ink:#e4e9ef; --muted:#93a1b0; --line:#2c3743; --soft:#1e2833;
+  --accent:#6fa3e8; --accent-ink:#0d1520; --accent-soft:#1d2d44;
+  --ok:#5cc58b; --ok-bg:#163326; --ng:#f2867d; --ng-bg:#3a1c1a; --hold:#f0b45c; --hold-bg:#3a2a12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --paper:#18202a; --ink:#e4e9ef; --muted:#93a1b0; --line:#2c3743; --soft:#1e2833;
+  --accent:#6fa3e8; --accent-ink:#0d1520; --accent-soft:#1d2d44;
+  --ok:#5cc58b; --ok-bg:#163326; --ng:#f2867d; --ng-bg:#3a1c1a; --hold:#f0b45c; --hold-bg:#3a2a12; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;margin:0;padding:0 16px}
+.wrap{max-width:980px;margin:0 auto;padding-block:16px 56px;display:flex;flex-direction:column;gap:16px}
+.sheet{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px;min-width:0}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+h2{font-size:22px;font-weight:700;letter-spacing:.02em}
+h3{font-size:17px;font-weight:600}
+.lbl,label{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)} .small{font-size:13px}
+.mono{font-family:var(--f-mono)}
+input[type=text],input[type=password],input[type=date],input[type=number],select,textarea{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:64px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;font-size:14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:8px 14px;border-radius:4px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--ng);border-color:var(--ng)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:13px}
+.err{color:var(--ng);font-size:14px}
+.note{background:var(--accent-soft);border-radius:4px;padding:10px 12px;font-size:14px}
+
+/* app bar */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand .co{font-family:var(--f-display);font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-size:12px}
+.brand h1{font-size:24px;font-weight:700;line-height:1.05}
+.who{display:flex;align-items:center;gap:10px}
+.role{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.1em;padding:3px 8px;border-radius:3px;background:var(--accent-soft);color:var(--accent);text-transform:uppercase}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{font:inherit;font-family:var(--f-display);font-weight:600;font-size:16px;letter-spacing:.03em;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 12px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:var(--ng);color:var(--paper);font-size:12px;font-family:var(--f-body);text-align:center;margin-left:4px}
+
+/* login */
+.login{max-width:380px;margin:8vh auto 0;display:flex;flex-direction:column;gap:14px}
+.login h1{font-size:28px;font-weight:700}
+
+/* checklist */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--soft)}
+.seg button{font:inherit;font-family:var(--f-display);font-weight:600;letter-spacing:.06em;border:0;background:transparent;color:var(--muted);padding:7px 14px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.sec-h{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:4px}
+.sec-h .ltr{font-family:var(--f-display);font-weight:700;font-size:26px;color:var(--accent);line-height:1}
+.sec-h h2{font-size:20px;letter-spacing:.06em}
+.group{padding:12px 0;border-bottom:1px solid var(--line)}
+.group:last-child{border-bottom:0;padding-bottom:0}
+.g-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.linkbtn{font:inherit;font-size:13px;color:var(--accent);background:none;border:0;cursor:pointer;padding:2px 0;text-decoration:underline;text-underline-offset:3px}
+.item{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:8px 10px;border-radius:4px;border-left:3px solid transparent}
+.item:nth-child(even){background:var(--soft)}
+.item.is-ok{border-left-color:var(--ok)}
+.item.is-ng{border-left-color:var(--ng);background:var(--ng-bg)}
+.code{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.res{display:inline-flex;gap:6px}
+.res button,.res span{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.06em;width:48px;padding:6px 0;border-radius:4px;border:1px solid var(--line);background:var(--paper);color:var(--muted);cursor:pointer;text-align:center}
+.res .ok[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:var(--paper)}
+.res .ng[aria-pressed=true]{background:var(--ng);border-color:var(--ng);color:var(--paper)}
+.need-rem input[data-rem]{border-color:var(--ng);background:var(--paper)}
+.res button:disabled{cursor:not-allowed;opacity:.85}
+.scanbox{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+.scanbox .val{flex:1 1 180px;min-width:0;font-family:var(--f-mono);font-size:15px;padding:8px 10px;border:1px dashed var(--line);border-radius:4px;background:var(--soft);display:flex;align-items:center;overflow-wrap:anywhere}
+.scanbox .val.has{border-style:solid;border-color:var(--ok);background:var(--ok-bg);color:var(--ink)}
+.led-sel{flex:1 1 200px}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+label.btn{font-family:var(--f-body);font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;display:inline-flex;align-items:center;position:relative}
+label.btn.primary{color:var(--accent-ink)}
+.scanbox input.val-in{flex:1 1 180px;font-family:var(--f-mono);font-size:15px}
+.scanbox input.val-in.has{border-color:var(--ok);background:var(--ok-bg)}
+.scanhelp{font-size:12px;color:var(--muted);flex-basis:100%}
+.scanprev{width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.rbadge{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.06em;min-width:48px;padding:5px 10px;border-radius:4px;text-align:center;cursor:default;display:inline-block}
+.rbadge.ok{background:var(--ok-bg);color:var(--ok)} .rbadge.ng{background:var(--ng);color:var(--paper)} .rbadge.none{background:var(--soft);color:var(--muted)}
+.readonly{display:flex;gap:8px;align-items:center;background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:8px 12px;font-size:14px;color:var(--muted)}
+.remark{grid-column:2 / -1;display:flex;gap:8px;flex-wrap:wrap}
+.remark input{flex:1 1 150px;font-size:14px;padding:6px 9px}
+.remark .ro{font-size:13px;color:var(--muted)}
+.status{font-family:var(--f-display);font-weight:700;letter-spacing:.06em;padding:3px 10px;border-radius:4px;font-size:14px;white-space:nowrap;display:inline-block}
+.st-pending{background:var(--soft);color:var(--muted)}
+.st-pass{background:var(--ok-bg);color:var(--ok)}
+.st-hold{background:var(--hold-bg);color:var(--hold)}
+.st-ver{background:var(--accent-soft);color:var(--accent)}
+.strip{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px}
+.prog{flex:1 1 180px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.pbar{height:6px;background:var(--soft);border-radius:3px;overflow:hidden;border:1px solid var(--line)}
+.pbar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.counts{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.warn{background:var(--hold-bg);color:var(--hold);border-radius:4px;padding:10px 12px;font-size:14px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:0 -4px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--soft)}
+.empty{padding:28px 12px;text-align:center;color:var(--muted)}
+
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.kpi{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .v{font-family:var(--f-display);font-weight:700;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--muted)}
+.kpi.ok .v{color:var(--ok)} .kpi.ng .v{color:var(--ng)}
+.hbar{display:grid;grid-template-columns:minmax(0,1fr) 120px 70px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.hbar .track{height:10px;background:var(--soft);border-radius:2px;overflow:hidden}
+.hbar .track i{display:block;height:100%;background:var(--ng)}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+svg text{font-family:var(--f-body)}
+
+/* signature */
+.pad{border:1px dashed var(--muted);border-radius:4px;background:var(--paper);touch-action:none;width:100%;height:160px;display:block;cursor:crosshair}
+.sigimg{max-width:240px;height:auto;background:#fff;border:1px solid var(--line);border-radius:4px}
+.signoff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.signoff .col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:4px;font-size:14px;z-index:20;max-width:90vw}
+
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){
+  .grid2,.signoff{grid-template-columns:1fr}
+  .item{grid-template-columns:34px minmax(0,1fr)}
+  .res{grid-column:2}
+  .sheet{padding:16px}
+  .hbar{grid-template-columns:minmax(0,1fr) 60px 56px}
+}
+@media (prefers-reduced-motion:reduce){.pbar i{transition:none}}
+/* live scanner */
+.scanmodal{position:fixed;inset:0;z-index:30;background:rgba(5,10,18,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.scanmodal #reader{width:min(92vw,440px);background:#000;border-radius:8px;overflow:hidden}
+.scanmodal #reader video{width:100%!important;height:auto!important;display:block}
+.scanmodal .t{color:#fff;font-family:var(--f-display);font-size:20px;font-weight:700;letter-spacing:.04em}
+.scanmodal .h{color:#c9d3de;font-size:14px;text-align:center;max-width:440px}
+.scanmodal .btn{min-width:140px}
+.demo-tag{background:var(--hold-bg);color:var(--hold)}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <div class="sheet login">
+    <div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>QC Inspection</h1></div>
+    <p class="muted">Connecting to the inspection records…</p>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- checklist definition ---------- */
+const SECTIONS=[
+ {ltr:"A",title:"APPEARANCE CHECK",groups:[
+  {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
+  {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
+  {n:"3",title:"LCD",items:[["3a","Protective screen condition"],["3b","LCD condition"]]},
+  {n:"4",title:"Nameplate",items:[["4a","Nameplate fixed properly"],["4b","Nameplate ID matches charging pile ID"],["4c","Nameplate ID matches packaging box ID"]]}]},
+ {ltr:"B",title:"FUNCTIONS CHECK",groups:[
+  {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","Status light function and any light leaking"],["1c","Logo light function and any light leaking"],["1d","Ambient light function and any light leaking"],["1e","RFID charging test"],["1f","Remote charging test"],["1g","Direct charging test"]]},
+  {n:"2",title:"LCD",items:[["2a","Display working properly"],["2b","Display condition"]]},
+  {n:"3",title:"Communications",items:[["3a","WiFi connection"],["3b","OCPP URL (correct server URL)"]]},
+  {n:"4",title:"CCTV",items:[["4a","CCTV LED indicator"],["4b","CCTV QR ID"]]},
+  {n:"5",title:"Installation Accessories & Documents",items:[["5a","Wall mount bracket"],["5b","Wall mount screw pack"],["5c","User manual"]]}]}];
+const ITEMS=[];SECTIONS.forEach(s=>s.groups.forEach(g=>g.items.forEach(([c,t])=>ITEMS.push({key:s.ltr+"-"+c,code:s.ltr+c,text:t,group:s.ltr+g.n+" "+g.title}))));
+const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i]));
+const PRODUCT="SMART AC CHARGER 7KW", MODEL="E7-P2-001101", REV="REV : 001/EVCLR/2026";
+const LED_OPTS=["Green blinking","Green static","Red blinking","Red static"];
+const ROLES={staff:"Staff",verifier:"Verifier",admin:"Admin"};
+const TABS={staff:[["new","New inspection"],["mine","My records"]],
+  verifier:[["verify","To verify"],["records","All records"]],
+  admin:[["dash","Dashboard"],["verify","To verify"],["records","Records"],["batches","Batches"],["accounts","Accounts"]]};
+
+/* ---------- state ---------- */
+let API="",TOKEN="",DEMO=false,POLL=null;
+const S={phase:"loading",accounts:{},batches:[],insp:[],session:null,tab:null,detail:null,
+  filt:{from:daysAgo(29),to:today(),batch:"",status:""},sel:new Set(),form:null,acctEdit:null};
+
+/* ---------- helpers ---------- */
+function today(){return ymd(new Date())}
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return ymd(d)}
+function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function dmy(s){if(!s)return"-";const [y,m,d]=s.slice(0,10).split("-");return d+"/"+m+"/"+y}
+function dt(iso){if(!iso)return"-";const d=new Date(iso);return dmy(ymd(d))+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function pct(a,b){return b?(a/b*100).toFixed(1)+"%":"–"}
+function $(s){return document.querySelector(s)}
+function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600)}
+function ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k);if(v===null)sessionStorage.removeItem(k);else sessionStorage.setItem(k,v)}catch(e){return null}}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+async function hashPin(u,p){const t=new TextEncoder().encode("czero-qc|"+u.toLowerCase()+"|"+p);
+  try{const b=await crypto.subtle.digest("SHA-256",t);return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+  catch(e){let h=2166136261;for(const c of t){h^=c;h=Math.imul(h,16777619)>>>0}return"f"+h.toString(16)}}
+function cleanUser(u){return String(u||"").trim().toLowerCase()}
+function validUser(u){return /^[a-z0-9._-]{3,30}$/.test(u)}
+function validPin(p){return /^\d{4,8}$/.test(p)}
+function me(){return S.session}
+function acctName(u){return (S.accounts&&S.accounts[u]?.name)||u}
+function statusPill(i){return i.status==="PASS"?'<span class="status st-pass">PASS · FG</span>':'<span class="status st-hold">ON HOLD · REJECT</span>'}
+function verPill(i){return i.verified?'<span class="status st-ver">VERIFIED</span>':'<span class="status st-pending">PENDING</span>'}
+function dbErr(e){return (e&&e.message)||"Could not save. Check your connection and try again."}
+
+/* ---------- DEMO: in-browser sample backend (no Google Sheet needed) ---------- */
+const DEMO_USERS=[["admin","1111","Shahrol (Admin)","admin"],["farah","2222","Farah Aziz","verifier"],["ali","3333","Ali Hassan","staff"],["amir","4444","Amir Rahman","staff"]];
+const M={acc:{},batches:[],insp:[],seeded:false};
+function demoSig(){const c=document.createElement("canvas");c.width=360;c.height=120;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,360,120);x.strokeStyle="#0c1f3a";x.lineWidth=3;x.lineCap="round";x.beginPath();
+  let px=30,py=70;x.moveTo(px,py);for(let i=0;i<24;i++){px+=12;py=60+Math.sin(i*1.3)*24+(i%5?0:-14);x.lineTo(px,py)}x.stroke();return c.toDataURL("image/jpeg",.7)}
+async function seedDemo(){
+  if(M.seeded)return;M.seeded=true;
+  DEMO_USERS.forEach(([u,p,name,role])=>M.acc[u]={username:u,name,role,pin:p,active:true,createdAt:new Date().toISOString()});
+  const B=[["b1","B2609-01",120,15],["b2","B2609-02",100,8],["b3","B2610-01",80,2]];
+  B.forEach(([id,no,q,ago])=>M.batches.push({id,batchNo:no,incomingQty:q,receivedDate:daysAgo(ago),model:MODEL,open:true}));
+  const ngPool=["B-3a","B-3a","A-1a","A-1a","B-1b","B-1e","A-4b","B-4a","A-2a","B-2a"];
+  const REM={"B-3a":"Cannot connect to site WiFi","A-1a":"Scratch on side panel","B-1b":"Light leaking at bottom","B-1e":"RFID card not detected","A-4b":"ID mismatch","B-4a":"LED not blinking green","A-2a":"Print bubble","B-2a":"Screen flicker"};
+  const sig=demoSig();let seed=7;const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;let k=0;
+  B.forEach(([bid,bno,q,ago])=>{const count=bid==="b1"?96:bid==="b2"?54:18;
+    for(let i=0;i<count;i++){const dAgo=Math.max(0,ago-1-Math.floor(rnd()*Math.min(ago,10)));const d=new Date();d.setDate(d.getDate()-dAgo);d.setHours(8+Math.floor(rnd()*9),Math.floor(rnd()*60));
+      const ng=[...new Set(rnd()<(bid==="b2"?.16:.09)?[ngPool[Math.floor(rnd()*ngPool.length)]].concat(rnd()<.2?[ngPool[Math.floor(rnd()*ngPool.length)]]:[]):[])];
+      const res={};ITEMS.forEach(t=>res[t.key]=ng.includes(t.key)?"NG":"OK");const rem={};ng.forEach(x=>rem[x]=REM[x]||"Defect found");
+      const who=rnd()<.55?["ali","Ali Hassan"]:["amir","Amir Rahman"];const ver=dAgo>1||rnd()<.4;k++;
+      M.insp.push({id:"s"+k,batchId:bid,batchNo:bno,pileId:"CZ7"+bno.slice(-4).replace("-","")+String(i+1).padStart(3,"0"),pileMethod:rnd()<.85?"scan":"key",product:PRODUCT,model:MODEL,panel:rnd()<.5?"A":"B",
+        results:res,remarks:rem,ngItems:ng,status:ng.length?"ON HOLD":"PASS",led:ng.includes("B-4a")?["Green static","Red blinking","Red static"][k%3]:"Green blinking",cctvId:"CZCAM"+(10000+k),cctvPw:"",
+        overall:ng.length?"Unit moved to rework area.":"",reinspect:false,checkedBy:who[0],checkedName:who[1],checkedAt:d.toISOString(),day:ymd(d),
+        verified:ver,verifiedBy:ver?"farah":"",verifiedName:ver?"Farah Aziz":"",verifiedAt:ver?new Date(d.getTime()+3*36e5).toISOString():"",verifyComment:"",signature:ver?sig:""})}});
+}
+async function mockApi(action,p){
+  await new Promise(r=>setTimeout(r,150));
+  const fail=m=>({ok:false,error:m}),ok=o=>({ok:true,...o});
+  const pub=a=>({username:a.username,name:a.name,role:a.role});
+  if(action==="ping")return ok({setup:true});
+  if(action==="login"){const a=M.acc[cleanUser(p.username)];if(!a||a.pin!==String(p.pin))return fail("Username or PIN is not correct.");if(!a.active)return fail("This account is deactivated. Contact your admin.");return ok({token:"demo|"+a.username,user:pub(a)})}
+  const me=M.acc[String(TOKEN).split("|")[1]];if(!me||!me.active)return fail("SESSION_EXPIRED");
+  const need=r=>r.includes(me.role);
+  switch(action){
+    case"me":return ok({user:pub(me)});
+    case"data":return ok({user:pub(me),batches:JSON.parse(JSON.stringify(M.batches)),inspections:JSON.parse(JSON.stringify(M.insp)),accounts:me.role==="admin"?Object.values(M.acc).map(a=>({username:a.username,name:a.name,role:a.role,active:a.active})):undefined});
+    case"submit":{if(!need(["staff","admin"]))return fail("Your role cannot do this.");const d=p.insp,b=M.batches.find(x=>x.id===d.batchId);if(!b)return fail("Select the incoming batch.");
+      const ng=Object.keys(d.results).filter(k=>d.results[k]==="NG");if(ng.some(k=>!(d.remarks[k]||"").trim()))return fail("Every NG item needs a remark.");const t=new Date();
+      const row={...d,id:"n"+Date.now(),batchNo:b.batchNo,ngItems:ng,status:ng.length?"ON HOLD":"PASS",checkedBy:me.username,checkedName:me.name,checkedAt:t.toISOString(),day:ymd(t),verified:false};M.insp.push(row);return ok({id:row.id,status:row.status})}
+    case"verify":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");let n=0,sk=0;const t=new Date().toISOString();
+      M.insp.forEach(i=>{if(!p.ids.includes(i.id))return;if(i.verified||i.checkedBy===me.username){sk++;return}Object.assign(i,{verified:true,verifiedBy:me.username,verifiedName:me.name,verifiedAt:t,signature:p.signature,verifyComment:p.comment||""});n++});return ok({verified:n,skipped:sk})}
+    case"changePin":if(me.pin!==String(p.oldPin))return fail("Current PIN is not correct.");me.pin=String(p.newPin);return ok({});
+    case"createAccount":{if(!need(["admin"]))return fail("Your role cannot do this.");const u=cleanUser(p.username);if(M.acc[u])return fail(`Username ${u} is already taken.`);M.acc[u]={username:u,name:p.name,role:p.role,pin:String(p.pin),active:true};return ok({})}
+    case"resetPin":{if(!need(["admin"]))return fail("Your role cannot do this.");const a=M.acc[p.username];if(!a)return fail("Account not found.");a.pin=String(p.pin);return ok({})}
+    case"toggleAccount":{if(!need(["admin"]))return fail("Your role cannot do this.");if(p.username===me.username)return fail("You cannot deactivate your own account.");const a=M.acc[p.username];a.active=!a.active;return ok({active:a.active})}
+    case"createBatch":{if(!need(["admin"]))return fail("Your role cannot do this.");M.batches.push({id:"b"+Date.now(),batchNo:p.batchNo,incomingQty:+p.incomingQty,receivedDate:p.receivedDate,model:p.model,open:true});return ok({})}
+    case"toggleBatch":{const b=M.batches.find(x=>x.id===p.id);b.open=b.open===false;return ok({})}
+    case"deleteBatch":{if(M.insp.some(i=>i.batchId===p.id))return fail("This batch has inspections and cannot be deleted. Close it instead.");M.batches=M.batches.filter(x=>x.id!==p.id);return ok({})}
+  }
+  return fail("Unknown action.");
+}
+
+/* ---------- API ---------- */
+async function api(action,payload={}){
+  let r;
+  if(DEMO){r=await mockApi(action,payload)}
+  else{
+    if(!API)throw new Error("The system link is not set up.");
+    let res;
+    try{res=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,token:TOKEN,...payload}),redirect:"follow"})}
+    catch(e){throw new Error("Cannot reach the Google Sheet. Check the internet connection and try again.")}
+    try{r=await res.json()}catch(e){throw new Error("The Google Sheet link did not answer correctly. Check the Web app URL and its access setting (Anyone).")}
+  }
+  if(!r.ok){
+    if(r.error==="SESSION_EXPIRED"){logout(true);throw new Error("Your session has ended. Please log in again.")}
+    throw new Error(r.error||"Something went wrong.");
+  }
+  return r;
+}
+async function loadData(quiet){
+  if(!S.session)return;
+  try{
+    const r=await api("data");
+    const roleChanged=S.session.role!==r.user.role;
+    S.session=r.user;
+    S.batches=(r.batches||[]).sort((x,y)=>(y.receivedDate||"").localeCompare(x.receivedDate||""));
+    S.insp=(r.inspections||[]).sort((x,y)=>(y.checkedAt||"").localeCompare(x.checkedAt||""));
+    S.accounts={};(r.accounts||[]).forEach(a=>S.accounts[a.username]=a);
+    S.loadedAt=new Date();
+    if(roleChanged){S.tab=TABS[S.session.role][0][0];render()}else liveRender();
+  }catch(e){if(!quiet)toast(e.message)}
+}
+function startPolling(){clearInterval(POLL);POLL=setInterval(()=>{if(document.visibilityState==="visible")loadData(true)},45000)}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.session)loadData(true)});
+
+/* ---------- boot ---------- */
+(async function boot(){
+  const h=location.hash||"";
+  if(h.startsWith("#api=")){ls("czqc-api",decodeURIComponent(h.slice(5)));history.replaceState(null,"",location.pathname+location.search)}
+  if(h==="#demo")DEMO=true;
+  API=ls("czqc-api")||"";
+  if(!API&&!DEMO){S.phase="config";render();return}
+  await start();
+})();
+async function start(){
+  S.phase="loading";render();
+  if(DEMO)await seedDemo();
+  TOKEN=(DEMO?"":ls("czqc-token"))||"";
+  try{
+    const p=await api("ping");
+    if(!p.setup){S.phase="setup";render();return}
+    S.phase="ready";
+    if(TOKEN){try{const r=await api("me");setSession(r.user);render();await loadData()}catch(e){render()}}
+    else render();
+  }catch(e){S.phase="error";S.err=e.message;render()}
+}
+function setSession(user){S.session=user;S.tab=TABS[user.role][0][0];S.detail=null;loadDraft();startPolling()}
+function logout(silent){if(TOKEN&&!DEMO)ls("czqc-token",null);TOKEN="";S.session=null;S.detail=null;S.form=null;S.insp=[];S.batches=[];S.accounts={};clearInterval(POLL);render()}
+function brandHead(sub){return `<div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>${sub||"QC Inspection"}</h1></div>`}
+function configView(){return `<form class="sheet login" id="config-form">${brandHead()}
+  <p class="muted small">Paste the Google Sheet Web app link the admin gave you. You only need to do this once on each phone or computer.</p>
+  <div class="field"><label for="c-url">Web app link</label><input type="text" id="c-url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="none" spellcheck="false"></div>
+  <div class="err" id="c-err"></div>
+  <button class="btn primary" type="submit">Connect</button>
+  <button class="btn" type="button" data-act="demo">Try the demo (sample data)</button></form>`}
+/* ---------- render ---------- */
+function render(){
+  const app=$("#app");
+  if(S.phase==="config"){app.innerHTML=configView();return}
+  if(S.phase==="loading"){app.innerHTML=`<div class="sheet login">${brandHead()}<p class="muted">Connecting to the inspection records…</p></div>`;return}
+  if(S.phase==="error"){app.innerHTML=`<div class="sheet login">${brandHead()}<p class="err">${esc(S.err)}</p><button class="btn primary" type="button" data-act="retry">Try again</button><button class="btn" type="button" data-act="reconfig">Change Web app link</button></div>`;return}
+  if(S.phase==="setup"){app.innerHTML=setupView();return}
+  if(!S.session){app.innerHTML=loginView();$("#l-user")?.focus();return}
+  app.innerHTML=shell()+`<main id="view" style="display:flex;flex-direction:column;gap:16px">${viewHtml()}</main>`;
+  afterRender();
+}
+function liveRender(){
+  if(!S.session)return;
+  // keep the checklist form untouched while someone is filling it
+  if(S.tab==="new"&&!S.detail){const b=$("#f-batch");if(b&&document.activeElement!==b){b.innerHTML=batchOptions(S.form.batchId)}updateFormUI();updateBadges();return}
+  if(document.activeElement&&document.activeElement.closest&&document.activeElement.closest("#view")&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){updateBadges();return}
+  if($("#pad")&&PAD&&!PAD.isEmpty()){updateBadges();return} // don't wipe a signature in progress
+  const v=$("#view");if(!v){render();return}
+  v.innerHTML=viewHtml();afterRender();updateBadges();
+}
+function pendingCount(){return S.insp.filter(i=>!i.verified&&i.checkedBy!==me()?.username).length}
+function updateBadges(){const b=$("#badge-verify");if(b){const n=pendingCount();b.textContent=n;b.hidden=!n}}
+function shell(){
+  const s=me();
+  const tabs=TABS[s.role].map(([k,l])=>`<button type="button" role="tab" data-act="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}${k==="verify"?`<span class="badge" id="badge-verify" ${pendingCount()?"":"hidden"}>${pendingCount()}</span>`:""}</button>`).join("");
+  return `<header class="sheet" style="display:flex;flex-direction:column;gap:12px;padding-bottom:0">
+    <div class="bar"><div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>AC Charger QC Inspection</h1></div>
+    <div class="who"><div style="text-align:right"><div><b>${esc(s.name)}</b></div><div class="small muted mono">${esc(s.username)}</div></div><span class="role">${ROLES[s.role]}</span>${DEMO?'<span class="status demo-tag">DEMO</span>':""}<button class="btn sm" type="button" data-act="refresh" title="Load the latest records">Refresh</button><button class="btn sm" type="button" data-act="tab" data-tab="pin">PIN</button><button class="btn sm" type="button" data-act="logout">Log out</button></div></div>
+    <nav class="tabs" role="tablist">${tabs}</nav></header>`;
+}
+function viewHtml(){
+  if(S.detail)return detailView();
+  switch(S.tab){case"new":return formView();case"mine":return recordsView(true);case"records":return recordsView(false);
+    case"verify":return verifyView();case"dash":return dashView();case"batches":return batchesView();case"accounts":return accountsView();case"pin":return pinView()}
+  return"";
+}
+function afterRender(){
+  if(S.tab==="new"&&!S.detail)updateFormUI();
+  if($("#pad"))PAD=mountPad($("#pad"));
+}
+
+/* ---------- login & setup ---------- */
+function loginView(){return `<form class="sheet login" id="login-form">
+  <div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>QC Inspection</h1></div>
+  ${DEMO?`<div class="note"><b>DEMO MODE.</b> Sample data only. Changes reset when you reload.</div><div class="field"><span class="lbl">Quick login</span><div class="row">${DEMO_USERS.map(([u,p,n,r])=>`<button type="button" class="btn sm" data-act="demologin" data-u="${u}" data-p="${p}">${ROLES[r]}: ${u}</button>`).join("")}</div></div>`:""}
+  <p class="muted small">Log in with the username and PIN given by your admin.</p>
+  <div class="field"><label for="l-user">Username</label><input type="text" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
+  <div class="field"><label for="l-pin">PIN</label><input type="password" id="l-pin" inputmode="numeric" autocomplete="current-password" maxlength="8"></div>
+  <div class="err" id="l-err" aria-live="polite"></div>
+  <button class="btn primary" type="submit" id="l-btn">Log in</button>${DEMO?`<button class="btn" type="button" data-act="exitdemo">Leave demo</button>`:""}</form>`}
+function pinView(){return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px;max-width:420px"><h2>Change my PIN</h2>
+  <form id="pin-form" style="display:flex;flex-direction:column;gap:12px">
+  <div class="field"><label for="p-old">Current PIN</label><input type="password" id="p-old" inputmode="numeric" maxlength="8"></div>
+  <div class="field"><label for="p-new">New PIN (4–8 digits)</label><input type="password" id="p-new" inputmode="numeric" maxlength="8"></div>
+  <div class="field"><label for="p-new2">Repeat new PIN</label><input type="password" id="p-new2" inputmode="numeric" maxlength="8"></div>
+  <div class="err" id="p-err"></div><div class="row"><button class="btn primary" type="submit">Save new PIN</button></div></form></section>`}
+function setupView(){
+  return `<form class="sheet login" id="setup-form">
+  <div class="brand"><div class="co">First-time setup</div><h1>Create the admin account</h1></div>
+  <p class="muted small">This account manages staff, verifiers, batches and the dashboard. You can add more accounts after logging in.</p>
+  <div class="field"><label for="su-name">Full name</label><input type="text" id="su-name"></div>
+  <div class="field"><label for="su-user">Username</label><input type="text" id="su-user" autocapitalize="none" spellcheck="false" placeholder="e.g. shahrol"></div>
+  <div class="field"><label for="su-pin">PIN (4–8 digits)</label><input type="password" id="su-pin" inputmode="numeric" maxlength="8"></div>
+  <div class="err" id="su-err"></div><button class="btn primary" type="submit">Create admin account</button></form>`}
+
+/* ---------- staff: new inspection ---------- */
+function blankForm(){return{batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},cctvId:"",cctvPw:"",led:"",overall:"",reinspect:false}}
+function draftKey(){return"czqc-draft-"+(me()?.username||"")}
+function loadDraft(){let f=null;try{f=JSON.parse(ls(draftKey())||"null")}catch(e){}S.form=Object.assign(blankForm(),f||{})}
+function saveDraft(){ls(draftKey(),JSON.stringify(S.form))}
+function batchOptions(sel){return `<option value="">Select batch…</option>`+S.batches.filter(b=>b.open!==false).map(b=>`<option value="${esc(b.id)}" ${b.id===sel?"selected":""}>${esc(b.batchNo)} · ${b.incomingQty} units · ${dmy(b.receivedDate)}</option>`).join("")}
+function formView(){
+  const f=S.form,s=me();
+  const sections=SECTIONS.map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
+    sec.groups.map(g=>`<div class="group"><div class="g-h"><h3>${g.n}. ${g.title}</h3></div>`+
+      g.items.map(([c,t])=>{const k=sec.ltr+"-"+c;return `<div class="item" data-key="${k}"><span class="code">${c}</span><span>${esc(t)}</span>
+        <span class="res"><button type="button" class="ok" data-act="res" data-key="${k}" data-v="OK" aria-pressed="false" aria-label="OK: ${esc(t)}" ${k==="B-4a"?"disabled":""}>OK</button><button type="button" class="ng" data-act="res" data-key="${k}" data-v="NG" aria-pressed="false" aria-label="NG: ${esc(t)}" ${k==="B-4a"?"disabled":""}>NG</button></span>
+        <div class="remark">${itemExtra(k,f)}<input type="text" id="rem-${k}" data-rem="${k}" placeholder="Remark" value="${esc(f.rem[k]||"")}"></div></div>`}).join("")+`</div>`).join("")+`</section>`).join("");
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    <div class="spread"><h2>Smart AC Charger 7kW inspection</h2><span class="small muted mono">${REV}</span></div>
+    ${S.batches.length?"":`<div class="warn">No batch has been registered yet. Ask the admin to add the incoming batch first.</div>`}
+    <div class="grid2">
+      <div class="field"><label for="f-batch">Incoming batch</label><select id="f-batch" data-f="batchId">${batchOptions(f.batchId)}</select></div>
+      <div class="field"><label for="f-pilemethod">Charging pile ID</label>
+        <select id="f-pilemethod" data-f="pileMethod"><option value="scan" ${f.pileMethod!=="key"?"selected":""}>Scan QR</option><option value="key" ${f.pileMethod==="key"?"selected":""}>Key in</option></select>
+        ${f.pileMethod==="key"?`<input type="text" id="f-pile" class="mono" data-f="pileId" value="${esc(f.pileId)}" placeholder="Key in pile ID" autocapitalize="characters" aria-label="Charging pile ID">`:
+        `<div class="scanbox"><input type="text" class="val-in ${f.pileId?"has":""}" id="f-pile" data-f="pileId" data-scanpaste="pileId" value="${esc(f.pileId)}" placeholder="Paste or scan QR result" autocapitalize="characters" autocomplete="off" aria-label="Charging pile ID">${scanBtns("pileId","Photo")}<span class="scanhelp">${SCAN_HELP}</span></div>`}</div>
+      <div class="field"><span class="lbl">Product / model</span><div>${PRODUCT} · <span class="mono">${MODEL}</span></div></div>
+      <div class="field"><span class="lbl">Decorative panel</span><div class="seg" role="group" aria-label="Decorative panel"><button type="button" data-act="panel" data-v="A" aria-pressed="${f.panel==="A"}">PATTERN A</button><button type="button" data-act="panel" data-v="B" aria-pressed="${f.panel==="B"}">PATTERN B</button></div></div>
+    </div>
+    <div id="dup"></div></section>
+  <div class="sheet strip"><span class="status st-pending" id="f-status">PENDING</span>
+    <div class="prog"><div class="pbar"><i id="f-bar"></i></div><div class="counts" id="f-counts"></div></div>
+    <button class="btn" type="button" data-act="clearform">Clear form</button></div>
+  ${sections}
+  <section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    <div class="field"><label for="f-overall">Overall remarks / action for NG items</label><textarea id="f-overall" data-f="overall">${esc(f.overall)}</textarea></div>
+    <div class="signoff"><div class="col"><span class="lbl">Checked by</span><div><b>${esc(s.name)}</b> <span class="small muted mono">(${esc(s.username)})</span></div><div class="small muted">Date and time are recorded when you submit.</div></div>
+      <div class="col"><span class="lbl">Verified by</span><div class="small muted">A verifier signs online after you submit.</div></div></div>
+    <div class="err" id="f-err" aria-live="polite"></div>
+    <div class="row"><button class="btn primary" type="button" data-act="submit" id="f-submit">Submit &amp; sign as checker</button></div>
+  </section>`;
+}
+
+function itemExtra(k,f){
+  if(k==="B-4a")return `<select class="led-sel" id="f-led" data-f="led" aria-label="CCTV LED indicator"><option value="">Select LED status…</option>${LED_OPTS.map(o=>`<option ${f.led===o?"selected":""}>${o}</option>`).join("")}</select>`;
+  if(k==="B-4b")return `<div class="scanbox" style="flex:1 1 100%"><input type="text" class="val-in ${f.cctvId?"has":""}" id="f-cctvId" data-f="cctvId" data-scanpaste="cctvId" value="${esc(f.cctvId)}" placeholder="Paste or scan CCTV QR ID" autocomplete="off" aria-label="CCTV QR ID">${scanBtns("cctvId","Photo")}<span class="scanhelp">${SCAN_HELP}</span></div><input type="text" class="mono" id="f-cctvPw" data-f="cctvPw" placeholder="CCTV password (optional)" value="${esc(f.cctvPw)}">`;
+  return "";
+}
+const SCAN_HELP="Tap Scan to open the camera and point it at the QR or barcode. If the camera does not open, use Photo, paste the code, or use a Bluetooth scanner in this box.";
+function scanBtns(target,label){return `<button type="button" class="btn primary" data-act="livescan" data-target="${target}">Scan</button><label class="btn">${label}<input class="vh" type="file" accept="image/*" capture="environment" data-scan="${target}"></label>`}
+async function handleScan(inp){
+  const target=inp.dataset.scan,file=inp.files&&inp.files[0];inp.value="";
+  if(!file){toast("No photo was taken.");return}
+  return applyScanFile(target,file);
+}
+async function applyScanFile(target,file){
+  toast("Reading code… this can take a few seconds.");
+  let code=null,why="";
+  try{code=await decodeQR(file)}catch(e){why=String(e&&e.message||e)}
+  if(!code){toast(!window.jsQR&&!window.ZXing&&!("BarcodeDetector" in window)?"The QR reader did not load. Check the internet connection and reload the page.":"No QR code or barcode found in the photo. Hold the phone 10–20 cm away, fill the frame with the code, keep it sharp and avoid glare, then try again. You can also key in the ID.");return}
+  const v=code.trim();
+  setScanValue(target,v);
+  saveDraft();$("#view").innerHTML=viewHtml();afterRender();toast("Scanned: "+v);
+}
+function setScanValue(target,v){
+  v=String(v||"").trim();
+  if(target==="pileId"){S.form.pileId=v.toUpperCase();S.form.reinspect=false}else S.form.cctvId=v;
+  saveDraft();$("#view").innerHTML=viewHtml();afterRender();
+}
+
+/* ---------- live camera scanner ---------- */
+let LIVE=null;
+async function startLive(target){
+  if(!window.Html5Qrcode){toast("The scanner did not load. Check the internet connection, or use Photo.");return}
+  const m=document.createElement("div");m.className="scanmodal";m.id="scanmodal";
+  m.innerHTML=`<div class="t">${target==="pileId"?"Scan charging pile ID":"Scan CCTV QR ID"}</div><div id="reader"></div><div class="h" id="scan-hint">Point the camera at the code and hold steady.</div><button type="button" class="btn" data-act="closescan">Cancel</button>`;
+  document.body.append(m);
+  const F=window.Html5QrcodeSupportedFormats||{};
+  const formats=[F.QR_CODE,F.CODE_128,F.CODE_39,F.DATA_MATRIX,F.EAN_13,F.ITF].filter(x=>x!==undefined);
+  try{
+    LIVE=new Html5Qrcode("reader",{formatsToSupport:formats,verbose:false});
+    await LIVE.start({facingMode:"environment"},{fps:12,qrbox:(w,h)=>{const s=Math.floor(Math.min(w,h)*.75);return{width:s,height:target==="pileId"?Math.floor(s*.75):s}},aspectRatio:1.333},
+      txt=>{if(navigator.vibrate)navigator.vibrate(80);stopLive();setScanValue(target,txt);toast("Scanned: "+String(txt).trim())},()=>{});
+  }catch(e){
+    const msg=String(e&&(e.name||e.message||e));
+    $("#scan-hint").textContent=/NotAllowed|Permission/i.test(msg)?"Camera permission was refused. Allow camera access for this site in your browser settings, then try again.":/NotFound|Overconstrained/i.test(msg)?"No camera was found on this device. Use Photo or key in the ID.":"The camera could not start. Close other apps using the camera and try again, or use Photo.";
+  }
+}
+async function stopLive(){try{if(LIVE&&LIVE.isScanning)await LIVE.stop();LIVE&&LIVE.clear()}catch(e){}LIVE=null;$("#scanmodal")?.remove()}
+async function loadImg(file){
+  try{return await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){}
+  try{return await createImageBitmap(file)}catch(e){}
+  return await new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>res(null);im.src=URL.createObjectURL(file)});
+}
+let ZX=null;
+function zxReader(){
+  if(ZX||!window.ZXing)return ZX;
+  const Z=window.ZXing,h=new Map();
+  h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.QR_CODE,Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.DATA_MATRIX,Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.ITF]);
+  h.set(Z.DecodeHintType.TRY_HARDER,true);
+  ZX=new Z.MultiFormatReader();ZX.setHints(h);return ZX;
+}
+function tryCanvas(c){
+  const x=c.getContext("2d",{willReadFrequently:true});
+  if(window.jsQR){const r=jsQR(x.getImageData(0,0,c.width,c.height).data,c.width,c.height,{inversionAttempts:"attemptBoth"});if(r&&r.data)return r.data}
+  const rd=zxReader();
+  if(rd){const Z=window.ZXing;
+    for(const Bin of [Z.HybridBinarizer,Z.GlobalHistogramBinarizer]){
+      try{const res=rd.decodeWithState(new Z.BinaryBitmap(new Bin(new Z.HTMLCanvasElementLuminanceSource(c))));if(res&&res.getText())return res.getText()}catch(e){}}}
+  return null;
+}
+async function decodeQR(file){
+  const img=await loadImg(file);if(!img)throw new Error("photo could not be opened");
+  const W=img.width||img.naturalWidth,H=img.height||img.naturalHeight;
+  if("BarcodeDetector" in window){try{const d=new BarcodeDetector();const r=await d.detect(img);if(r&&r[0])return r[0].rawValue}catch(e){}}
+  if(!window.jsQR&&!window.ZXing)return null;
+  // whole photo at several sizes, centre crops, then a 3x3 grid of overlapping crops
+  const regions=[[0,0,1,1,1600],[0,0,1,1,1100],[0,0,1,1,800],[.2,.2,.6,.6,1000],[.3,.3,.4,.4,800],[.375,.375,.25,.25,600]];
+  for(let gy=0;gy<3;gy++)for(let gx=0;gx<3;gx++)regions.push([gx*.25,gy*.25,.5,.5,900]);
+  for(const [rx,ry,rw,rh,max] of regions){
+    const cw=W*rw,ch=H*rh,sc=Math.min(1,max/Math.max(cw,ch));
+    const c=document.createElement("canvas");c.width=Math.max(1,Math.round(cw*sc));c.height=Math.max(1,Math.round(ch*sc));
+    c.getContext("2d",{willReadFrequently:true}).drawImage(img,W*rx,H*ry,cw,ch,0,0,c.width,c.height);
+    const r=tryCanvas(c);if(r)return r;
+    await new Promise(r=>setTimeout(r,0));
+  }
+  return null;
+}
+function updateFormUI(){
+  const f=S.form;if(!f||!$("#f-status"))return;
+  let ok=0,ng=0;
+  document.querySelectorAll(".item[data-key]").forEach(r=>{const v=f.res[r.dataset.key];
+    r.classList.toggle("is-ok",v==="OK");r.classList.toggle("is-ng",v==="NG");
+    r.classList.toggle("need-rem",v==="NG"&&!(f.rem[r.dataset.key]||"").trim());
+    const ri=r.querySelector("[data-rem]");if(ri)ri.placeholder=v==="NG"?"Remark (required for NG)":"Remark";
+    r.querySelector(".ok").setAttribute("aria-pressed",v==="OK");r.querySelector(".ng").setAttribute("aria-pressed",v==="NG");
+    if(v==="OK")ok++;if(v==="NG")ng++});
+  document.querySelectorAll('[data-act="panel"]').forEach(b=>b.setAttribute("aria-pressed",f.panel===b.dataset.v));
+  const done=ok+ng,t=ITEMS.length;
+  $("#f-bar").style.width=(done/t*100)+"%";
+  $("#f-counts").innerHTML=`<b>${done}</b> / ${t} checked · <b>${ok}</b> OK · <b style="color:var(--ng)">${ng}</b> NG`;
+  const st=$("#f-status");
+  if(ng){st.className="status st-hold";st.textContent="ON HOLD"}else if(done===t){st.className="status st-pass";st.textContent="PASS"}else{st.className="status st-pending";st.textContent="PENDING"}
+  const pid=f.pileId.trim().toUpperCase(),prev=pid?S.insp.filter(i=>(i.pileId||"").toUpperCase()===pid):[];
+  $("#dup").innerHTML=prev.length?`<div class="warn">Pile ID ${esc(pid)} was already inspected on ${dt(prev[0].checkedAt)} (${prev[0].status}). <label style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:14px;color:inherit"><input type="checkbox" id="f-reinspect" data-f="reinspect" ${f.reinspect?"checked":""}> This is a re-inspection</label></div>`:"";
+}
+async function submitForm(){
+  const f=S.form,s=me(),err=$("#f-err");err.textContent="";
+  const pid=f.pileId.trim().toUpperCase();
+  const missing=ITEMS.filter(i=>!f.res[i.key]);
+  if(!f.batchId)return err.textContent="Select the incoming batch.";
+  if(!pid)return err.textContent=f.pileMethod==="key"?"Key in the charging pile ID.":"Scan the charging pile QR code.";
+  if(!f.panel)return err.textContent="Choose decorative panel Pattern A or B.";
+  if(missing.length)return err.textContent=`${missing.length} item(s) not checked yet, starting with ${missing[0].code} ${missing[0].text}.`;
+  const noRem=ITEMS.filter(i=>f.res[i.key]==="NG"&&!(f.rem[i.key]||"").trim());
+  if(noRem.length){$(`#rem-${noRem[0].key}`)?.focus();return err.textContent=`Write a remark for every NG item. Missing: ${noRem.map(i=>i.code).join(", ")}.`}
+  if(f.res["B-4b"]&&!f.cctvId.trim())return err.textContent="Scan the CCTV QR ID for item B4b.";
+  const dup=S.insp.some(i=>(i.pileId||"").toUpperCase()===pid);
+  if(dup&&!f.reinspect)return err.textContent="This pile ID was inspected before. Tick “This is a re-inspection” to submit again.";
+  const ng=ITEMS.filter(i=>f.res[i.key]==="NG").map(i=>i.key);
+  const b=S.batches.find(x=>x.id===f.batchId);const now=new Date();
+  const rem={};Object.keys(f.rem).forEach(k=>{if(f.rem[k]&&f.rem[k].trim())rem[k]=f.rem[k].trim()});
+  const doc={batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
+    results:{...f.res},remarks:rem,ngItems:ng,status:ng.length?"ON HOLD":"PASS",cctvId:f.cctvId.trim(),cctvPw:f.cctvPw.trim(),
+    led:f.led,pileMethod:f.pileMethod==="key"?"key":"scan",overall:f.overall.trim(),reinspect:!!(dup&&f.reinspect),checkedBy:s.username,checkedName:s.name,checkedAt:now.toISOString(),day:ymd(now),verified:false};
+  const btn=$("#f-submit");btn.disabled=true;btn.textContent="Saving…";
+  try{const r=await api("submit",{insp:doc});doc.status=r.status;loadData(true);
+    const keep=f.batchId;S.form=blankForm();S.form.batchId=keep;saveDraft();
+    $("#view").innerHTML=viewHtml();afterRender();window.scrollTo({top:0});toast(`Saved ${pid} · ${doc.status}`);$("#f-pile")?.focus();
+  }catch(e){err.textContent=dbErr(e);btn.disabled=false;btn.textContent="Submit & sign as checker"}
+}
+
+/* ---------- records ---------- */
+function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="HOLD"&&i.status!=="PASS")||(f.status==="PEND"&&!i.verified)))}
+function filterBar(withStatus){const f=S.filt;return `<div class="grid4">
+  <div class="field"><label for="ft-from">From</label><input type="date" id="ft-from" data-filt="from" value="${f.from}"></div>
+  <div class="field"><label for="ft-to">To</label><input type="date" id="ft-to" data-filt="to" value="${f.to}"></div>
+  <div class="field"><label for="ft-batch">Batch</label><select id="ft-batch" data-filt="batch"><option value="">All batches</option>${S.batches.map(b=>`<option value="${esc(b.id)}" ${f.batch===b.id?"selected":""}>${esc(b.batchNo)}</option>`).join("")}</select></div>
+  ${withStatus?`<div class="field"><label for="ft-status">Status</label><select id="ft-status" data-filt="status"><option value="">All</option><option value="PASS" ${f.status==="PASS"?"selected":""}>PASS · FG</option><option value="HOLD" ${f.status==="HOLD"?"selected":""}>ON HOLD · Reject</option><option value="PEND" ${f.status==="PEND"?"selected":""}>Not verified</option></select></div>`:`<div></div>`}</div>`}
+function recTable(list,opts={}){
+  if(!list.length)return `<div class="empty">${opts.empty||"No inspections match these filters."}</div>`;
+  return `<div class="tbl-wrap"><table><thead><tr>${opts.select?'<th><input type="checkbox" data-act="selall" aria-label="Select all"></th>':""}<th>Checked</th><th>Pile ID</th><th>Batch</th><th>Result</th><th>NG</th><th>Checked by</th><th>Verification</th><th></th></tr></thead><tbody>`+
+   list.map(i=>`<tr class="click" data-act="open" data-id="${esc(i.id)}">${opts.select?`<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${esc(i.id)}" ${S.sel.has(i.id)?"checked":""} aria-label="Select ${esc(i.pileId)}"></td>`:""}<td>${dt(i.checkedAt)}</td><td class="mono">${esc(i.pileId)}${i.reinspect?' <span class="small muted">(re)</span>':""}</td><td>${esc(i.batchNo)}</td><td>${statusPill(i)}</td><td class="num">${(i.ngItems||[]).length||""}</td><td>${esc(i.checkedName)}</td><td>${verPill(i)}${i.verified?`<div class="small muted">${esc(i.verifiedName)}</div>`:""}</td><td><button type="button" class="btn sm" data-act="open" data-id="${esc(i.id)}">View</button></td></tr>`).join("")+`</tbody></table></div>`}
+function recordsView(mine){
+  let list=applyFilt(S.insp);if(mine)list=list.filter(i=>i.checkedBy===me().username);
+  const csv=me().role==="admin"?`<button class="btn sm" type="button" data-act="csv">Export CSV</button>`:"";
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px"><div class="spread"><h2>${mine?"My inspections":"Inspection records"}</h2><div class="row"><span class="small muted">${list.length} record(s)</span>${csv}</div></div>${filterBar(true)}${recTable(list,{empty:mine?"You have not submitted any inspection in this date range.":undefined})}</section>`}
+
+/* ---------- verify ---------- */
+let PAD=null;
+function verifyView(){
+  const u=me().username;const list=S.insp.filter(i=>!i.verified);
+  const mineOnly=list.filter(i=>i.checkedBy===u).length;const canV=list.filter(i=>i.checkedBy!==u);
+  [...S.sel].forEach(id=>{if(!canV.some(i=>i.id===id))S.sel.delete(id)});
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    <div class="spread"><h2>Waiting for verification</h2><span class="small muted">${canV.length} inspection(s)</span></div>
+    ${mineOnly?`<div class="small muted">${mineOnly} inspection(s) you checked yourself are hidden. Another verifier must sign them.</div>`:""}
+    ${recTable(canV,{select:true,empty:"Nothing to verify. New inspections appear here as soon as staff submit them."})}</section>
+  ${canV.length?`<section class="sheet" style="display:flex;flex-direction:column;gap:12px">
+    <h3>Sign to verify selected inspections</h3>
+    <p class="small muted" style="margin:0">Open a row to review it first. Your signature, name and the current date and time are recorded on every selected inspection.</p>
+    <canvas id="pad" class="pad" aria-label="Signature pad"></canvas>
+    <div class="field"><label for="v-comment">Verifier comment (optional)</label><input type="text" id="v-comment"></div>
+    <div class="err" id="v-err"></div>
+    <div class="row"><button class="btn" type="button" data-act="padclear">Clear signature</button><button class="btn primary" type="button" data-act="verifysel" id="v-btn">Verify ${S.sel.size} selected</button></div></section>`:""}`}
+function mountPad(cv){
+  const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;
+  const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);ctx.lineWidth=2.2;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#0c1f3a";
+  let drawing=false,empty=true,last=null;
+  const pos=e=>{const b=cv.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]};
+  cv.onpointerdown=e=>{drawing=true;last=pos(e);cv.setPointerCapture(e.pointerId);ctx.beginPath();ctx.arc(last[0],last[1],1,0,7);ctx.fillStyle="#0c1f3a";ctx.fill();empty=false};
+  cv.onpointermove=e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last[0],last[1]);ctx.lineTo(p[0],p[1]);ctx.stroke();last=p};
+  cv.onpointerup=cv.onpointercancel=()=>{drawing=false};
+  return{isEmpty:()=>empty,clear:()=>{ctx.clearRect(0,0,cv.width,cv.height);empty=true},
+    data:()=>{const o=document.createElement("canvas");o.width=360;o.height=120;const c=o.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,360,120);c.drawImage(cv,0,0,360,120);return o.toDataURL("image/jpeg",.7)}};
+}
+async function verify(ids,errEl,btn){
+  errEl.textContent="";
+  if(!ids.length)return errEl.textContent="Select at least one inspection.";
+  if(!PAD||PAD.isEmpty())return errEl.textContent="Sign in the box before verifying.";
+  const sig=PAD.data(),comment=($("#v-comment")?.value||"").trim();
+  btn.disabled=true;btn.textContent="Saving signature…";
+  try{const r=await api("verify",{ids,signature:sig,comment});ids.forEach(id=>S.sel.delete(id));
+    toast(`${r.verified} inspection(s) verified`+(r.skipped?` · ${r.skipped} skipped`:""));
+    S.detail=null;PAD=null;await loadData(true);$("#view").innerHTML=viewHtml();afterRender();updateBadges()}
+  catch(e){errEl.textContent=dbErr(e);btn.disabled=false;btn.textContent="Try again"}
+}
+
+/* ---------- detail ---------- */
+function detailView(){
+  const i=S.insp.find(x=>x.id===S.detail);if(!i){S.detail=null;return viewHtml()}
+  const s=me(),canVerify=!i.verified&&(s.role==="verifier"||s.role==="admin")&&i.checkedBy!==s.username;
+  const rows=SECTIONS.map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
+    sec.groups.map(g=>`<div class="group"><div class="g-h"><h3>${g.n}. ${g.title}</h3></div>`+g.items.map(([c,t])=>{const k=sec.ltr+"-"+c,v=i.results?.[k];
+      const extra=k==="B-4b"&&(i.cctvId||i.cctvPw)?`QR ID: <span class="mono">${esc(i.cctvId)}</span>${i.cctvPw?` · PW: <span class="mono">${esc(i.cctvPw)}</span>`:""} · `:k==="B-4a"&&i.led?`LED: <b>${esc(i.led)}</b> · `:"";
+      return `<div class="item ${v==="OK"?"is-ok":v==="NG"?"is-ng":""}"><span class="code">${c}</span><span>${esc(t)}</span><span class="rbadge ${v==="OK"?"ok":v==="NG"?"ng":"none"}">${v||"–"}</span>${extra||i.remarks?.[k]?`<div class="remark"><span class="ro">${extra}${esc(i.remarks?.[k]||"")}</span></div>`:""}</div>`}).join("")+`</div>`).join("")+`</section>`).join("");
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    <div class="spread"><button class="btn sm" type="button" data-act="back">← Back</button><div class="row"><button class="btn sm" type="button" data-act="pdf" data-id="${esc(i.id)}">Download PDF</button></div></div>
+    <div class="readonly"><span class="status st-pending">VIEW ONLY</span> Inspection results cannot be changed after the checker submits${canVerify?". You can only add your verification signature below.":"."}</div>
+    <div class="spread"><h2 class="mono" style="font-family:var(--f-mono);font-size:20px">${esc(i.pileId)} <span class="small muted" style="font-family:var(--f-body)">${i.pileMethod==="key"?"keyed in":i.pileMethod==="scan"?"scanned":""}</span></h2><div class="row">${statusPill(i)}${verPill(i)}</div></div>
+    <div class="grid4">
+      <div class="field"><span class="lbl">Batch</span><div>${esc(i.batchNo)}</div></div>
+      <div class="field"><span class="lbl">Model</span><div class="mono">${esc(i.model)}</div></div>
+      <div class="field"><span class="lbl">Decorative panel</span><div>Pattern ${esc(i.panel)}</div></div>
+      <div class="field"><span class="lbl">Inspection date</span><div>${dmy(i.day)}</div></div></div>
+    ${i.reinspect?`<div class="small muted">Re-inspection of a previously checked unit.</div>`:""}</section>
+  ${rows}
+  <section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    ${i.overall?`<div class="field"><span class="lbl">Overall remarks</span><div>${esc(i.overall)}</div></div>`:""}
+    <div class="signoff"><div class="col"><span class="lbl">Checked by</span><div><b>${esc(i.checkedName)}</b> <span class="small muted mono">(${esc(i.checkedBy)})</span></div><div class="small muted">${dt(i.checkedAt)}</div></div>
+    <div class="col"><span class="lbl">Verified by</span>${i.verified?`<img class="sigimg" src="${esc(i.signature)}" alt="Signature of ${esc(i.verifiedName)}"><div><b>${esc(i.verifiedName)}</b> <span class="small muted mono">(${esc(i.verifiedBy)})</span></div><div class="small muted">${dt(i.verifiedAt)}</div>${i.verifyComment?`<div class="small">${esc(i.verifyComment)}</div>`:""}`:`<div class="small muted">${i.checkedBy===s.username&&s.role!=="staff"?"You checked this unit, so another verifier must sign it.":"Not verified yet."}</div>`}</div></div></section>
+  ${canVerify?`<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><h3>Verify this inspection</h3>
+    <canvas id="pad" class="pad" aria-label="Signature pad"></canvas>
+    <div class="field"><label for="v-comment">Verifier comment (optional)</label><input type="text" id="v-comment"></div>
+    <div class="err" id="v-err"></div>
+    <div class="row"><button class="btn" type="button" data-act="padclear">Clear signature</button><button class="btn primary" type="button" data-act="verifyone" data-id="${esc(i.id)}" id="v-btn">Sign &amp; verify</button></div></section>`:""}`}
+
+/* ---------- dashboard ---------- */
+function dashView(){
+  const list=applyFilt(S.insp,false);
+  const fg=list.filter(i=>i.status==="PASS").length,rej=list.length-fg,pend=list.filter(i=>!i.verified).length;
+  const bIds=S.filt.batch?[S.filt.batch]:[...new Set(list.map(i=>i.batchId))];
+  const bmap=Object.fromEntries(S.batches.map(b=>[b.id,b]));
+  const incoming=bIds.reduce((a,id)=>a+(+bmap[id]?.incomingQty||0),0);
+  // by batch (all-time counts for the batch, so incoming % is meaningful)
+  const byBatch=bIds.map(id=>{const b=bmap[id]||{batchNo:"(deleted batch)",incomingQty:0};const all=S.insp.filter(i=>i.batchId===id);const r=all.filter(i=>i.status!=="PASS").length;return{b,checked:all.length,fg:all.length-r,rej:r}}).sort((x,y)=>(y.b.receivedDate||"").localeCompare(x.b.receivedDate||""));
+  // by day
+  const dayMap={};list.forEach(i=>{const d=dayMap[i.day]||(dayMap[i.day]={fg:0,rej:0});i.status==="PASS"?d.fg++:d.rej++});
+  let days=Object.keys(dayMap).sort();
+  if(S.filt.from&&S.filt.to){const a=new Date(S.filt.from),b=new Date(S.filt.to),n=(b-a)/864e5;if(n>=0&&n<=62){days=[];for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1))days.push(ymd(d))}}
+  // reject types
+  const typ={};list.filter(i=>i.status!=="PASS").forEach(i=>(i.ngItems||[]).forEach(k=>typ[k]=(typ[k]||0)+1));
+  const types=Object.entries(typ).sort((a,b)=>b[1]-a[1]);const tmax=types[0]?.[1]||1;
+  const grp={};types.forEach(([k,n])=>{const g=ITEM[k]?.group||k;grp[g]=(grp[g]||0)+n});
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><div class="spread"><h2>QC dashboard</h2><button class="btn sm" type="button" data-act="csv">Export CSV</button></div>${filterBar(false)}</section>
+  <div class="kpis">
+    <div class="kpi"><span class="lbl">Total checked</span><span class="v">${list.length}</span><span class="s">${incoming?`of ${incoming} incoming units`:"no incoming quantity"}</span></div>
+    <div class="kpi ok"><span class="lbl">Total FG (pass)</span><span class="v">${fg}</span><span class="s">${pct(fg,list.length)} of checked</span></div>
+    <div class="kpi ng"><span class="lbl">Total reject</span><span class="v">${rej}</span><span class="s">On hold units</span></div>
+    <div class="kpi ng"><span class="lbl">Reject rate</span><span class="v">${pct(rej,incoming)}</span><span class="s">of incoming · ${pct(rej,list.length)} of checked</span></div>
+    <div class="kpi"><span class="lbl">Not verified</span><span class="v">${pend}</span><span class="s">awaiting verifier sign</span></div>
+  </div>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><div class="spread"><h3>Checked by day</h3><div class="legend"><span><i style="background:var(--ok)"></i>FG</span><span><i style="background:var(--ng)"></i>Reject</span></div></div>${dayChart(days,dayMap)}</section>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>By batch</h3><p class="small muted" style="margin:0">Batch totals cover every inspection in the batch, whatever the date filter.</p>
+   ${byBatch.length?`<div class="tbl-wrap"><table><thead><tr><th>Batch</th><th>Received</th><th class="num">Incoming</th><th class="num">Checked</th><th class="num">Progress</th><th class="num">FG</th><th class="num">Reject</th><th class="num">Reject % incoming</th><th class="num">Reject % checked</th></tr></thead><tbody>${byBatch.map(r=>`<tr><td><b>${esc(r.b.batchNo)}</b></td><td>${dmy(r.b.receivedDate)}</td><td class="num">${r.b.incomingQty||0}</td><td class="num">${r.checked}</td><td class="num">${pct(r.checked,+r.b.incomingQty)}</td><td class="num" style="color:var(--ok)">${r.fg}</td><td class="num" style="color:var(--ng)">${r.rej}</td><td class="num"><b>${pct(r.rej,+r.b.incomingQty)}</b></td><td class="num">${pct(r.rej,r.checked)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No batch has inspections in this date range.</div>`}</section>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>Type of reject</h3>
+   ${types.length?`<p class="small muted" style="margin:0">One unit can fail more than one item. Share is of all ${rej} rejected unit(s).</p>${types.map(([k,n])=>`<div class="hbar"><span><span class="code">${ITEM[k]?.code||k}</span> ${esc(ITEM[k]?.text||k)}</span><span class="track"><i style="width:${n/tmax*100}%"></i></span><span class="num" style="text-align:right"><b>${n}</b> · ${pct(n,rej)}</span></div>`).join("")}
+   <div class="small muted" style="margin-top:6px">By area: ${Object.entries(grp).sort((a,b)=>b[1]-a[1]).map(([g,n])=>`${esc(g)} <b>${n}</b>`).join(" · ")}</div>`:`<div class="empty">No rejects in this range.</div>`}</section>`}
+function dayChart(days,map){
+  if(!days.length)return `<div class="empty">No inspections in this date range.</div>`;
+  const W=900,H=220,pl=34,pb=26,pt=10,cw=(W-pl-8)/days.length,max=Math.max(1,...days.map(d=>(map[d]?.fg||0)+(map[d]?.rej||0)));
+  const nice=max<=5?max:Math.ceil(max/5)*5,y=v=>H-pb-(v/nice)*(H-pb-pt);
+  const ticks=[0,nice/2,nice].map(v=>Math.round(v));
+  const every=Math.ceil(days.length/12);
+  let g=ticks.map(v=>`<line x1="${pl}" x2="${W-8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}</text>`).join("");
+  days.forEach((d,ix)=>{const m=map[d]||{fg:0,rej:0},x=pl+ix*cw+cw*.15,w=Math.max(2,cw*.7);
+    if(m.fg)g+=`<rect x="${x}" y="${y(m.fg)}" width="${w}" height="${y(0)-y(m.fg)}" fill="var(--ok)"><title>${dmy(d)}: ${m.fg} FG</title></rect>`;
+    if(m.rej)g+=`<rect x="${x}" y="${y(m.fg+m.rej)}" width="${w}" height="${y(m.fg)-y(m.fg+m.rej)}" fill="var(--ng)"><title>${dmy(d)}: ${m.rej} reject</title></rect>`;
+    if(ix%every===0)g+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.slice(8)}/${d.slice(5,7)}</text>`});
+  return `<div class="tbl-wrap"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto" role="img" aria-label="Inspections per day">${g}</svg></div>`}
+
+/* ---------- batches ---------- */
+function batchesView(){
+  const rows=S.batches.map(b=>{const n=S.insp.filter(i=>i.batchId===b.id).length;return `<tr><td><b>${esc(b.batchNo)}</b></td><td class="mono">${esc(b.model)}</td><td>${dmy(b.receivedDate)}</td><td class="num">${b.incomingQty}</td><td class="num">${n}</td><td>${b.open===false?'<span class="status st-pending">CLOSED</span>':'<span class="status st-ver">OPEN</span>'}</td><td><div class="row"><button class="btn sm" type="button" data-act="togglebatch" data-id="${esc(b.id)}">${b.open===false?"Reopen":"Close"}</button>${n?"":`<button class="btn sm danger" type="button" data-act="delbatch" data-id="${esc(b.id)}">Delete</button>`}</div></td></tr>`}).join("");
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px"><h2>Register incoming batch</h2>
+   <form id="batch-form" class="grid4">
+    <div class="field"><label for="b-no">Batch no.</label><input type="text" id="b-no" placeholder="e.g. B2610-01"></div>
+    <div class="field"><label for="b-qty">Incoming qty</label><input type="number" id="b-qty" min="1" inputmode="numeric"></div>
+    <div class="field"><label for="b-date">Received date</label><input type="date" id="b-date" value="${today()}"></div>
+    <div class="field"><label for="b-model">Model</label><input type="text" id="b-model" class="mono" value="${MODEL}"></div>
+   </form><div class="err" id="b-err"></div><div class="row"><button class="btn primary" type="submit" form="batch-form">Add batch</button></div></section>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>Batches</h3><p class="small muted" style="margin:0">Closed batches no longer appear in the staff batch list.</p>
+   ${S.batches.length?`<div class="tbl-wrap"><table><thead><tr><th>Batch</th><th>Model</th><th>Received</th><th class="num">Incoming</th><th class="num">Checked</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty">No batches yet. Add the first incoming batch above.</div>`}</section>`}
+
+/* ---------- accounts ---------- */
+function accountsView(){
+  const list=Object.entries(S.accounts).sort((a,b)=>(a[1].role+a[0]).localeCompare(b[1].role+b[0]));
+  const rows=list.map(([u,a])=>`<tr><td class="mono">${esc(u)}</td><td>${esc(a.name)}</td><td><span class="role">${ROLES[a.role]}</span></td><td>${a.active===false?'<span class="status st-pending">INACTIVE</span>':'<span class="status st-pass">ACTIVE</span>'}</td>
+   <td>${S.acctEdit===u?`<div class="row"><input type="password" id="rp-pin" inputmode="numeric" maxlength="8" placeholder="New PIN" style="width:110px"><button class="btn sm primary" type="button" data-act="savepin" data-u="${esc(u)}">Save</button><button class="btn sm" type="button" data-act="cancelpin">Cancel</button></div>`:
+   `<div class="row"><button class="btn sm" type="button" data-act="resetpin" data-u="${esc(u)}">Reset PIN</button>${u===me().username?"":`<button class="btn sm ${a.active===false?"":"danger"}" type="button" data-act="toggleacct" data-u="${esc(u)}">${a.active===false?"Activate":"Deactivate"}</button>`}</div>`}</td></tr>`).join("");
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px"><h2>Create account</h2>
+   <form id="acct-form" class="grid4">
+    <div class="field"><label for="a-name">Full name</label><input type="text" id="a-name"></div>
+    <div class="field"><label for="a-user">Username</label><input type="text" id="a-user" autocapitalize="none" spellcheck="false" placeholder="3–30 letters/numbers"></div>
+    <div class="field"><label for="a-pin">PIN (4–8 digits)</label><input type="password" id="a-pin" inputmode="numeric" maxlength="8"></div>
+    <div class="field"><label for="a-role">Role</label><select id="a-role"><option value="staff">Staff (checker)</option><option value="verifier">Verifier</option><option value="admin">Admin</option></select></div>
+   </form><div class="err" id="a-err"></div><div class="row"><button class="btn primary" type="submit" form="acct-form">Create account</button></div></section>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>Accounts</h3><div class="err" id="a-err2"></div>
+   <div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`}
+
+/* ---------- PDF & CSV ---------- */
+async function makePdf(i){
+  if(!window.jspdf){toast("The PDF tool did not load. Reload the page and try again.");return}
+  const {jsPDF}=window.jspdf,d=new jsPDF({unit:"mm",format:"a4"});const L=14,R=196;let y=14;
+  const line=(yy,c=200)=>{d.setDrawColor(c);d.line(L,yy,R,yy)};
+  const brk=h=>{if(y+h>282){d.addPage();y=16}};
+  d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(93,107,122);d.text("C ZERO SDN BHD · QUALITY CONTROL",L,y);d.setFont("helvetica","normal");d.text(REV,R,y,{align:"right"});
+  y+=8;d.setTextColor(20);d.setFont("helvetica","bold");d.setFontSize(16);d.text("AC CHARGER INSPECTION REPORT",L,y);y+=8;
+  d.setFontSize(9);const meta=[["Product",i.product],["Model",i.model],["Charging pile ID",i.pileId],["Batch",i.batchNo],["Decorative panel","Pattern "+i.panel],["Inspection date",dmy(i.day)],["Status",i.status+(i.status==="PASS"?" (FG)":" (REJECT)")],["Verification",i.verified?"Verified":"Pending"]];
+  meta.forEach((m,ix)=>{const x=ix%2?105:L;if(ix%2===0&&ix)y+=6;d.setFont("helvetica","bold");d.setTextColor(93,107,122);d.text(m[0].toUpperCase(),x,y);d.setFont("helvetica","normal");d.setTextColor(20);d.text(String(m[1]||"-"),x+38,y)});
+  y+=5;
+  const head=()=>{d.setFillColor(29,79,145);d.rect(L,y,R-L,6,"F");d.setTextColor(255);d.setFont("helvetica","bold");d.setFontSize(8);d.text("NO",L+2,y+4.2);d.text("ITEM",L+14,y+4.2);d.text("RESULT",128,y+4.2);d.text("REMARK",146,y+4.2);y+=6;d.setTextColor(20)};
+  head();
+  SECTIONS.forEach(sec=>{brk(6);d.setFillColor(223,231,241);d.rect(L,y,R-L,6,"F");d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(sec.ltr+".  "+sec.title,L+2,y+4.2);y+=6;d.setTextColor(20);
+    sec.groups.forEach(g=>{brk(5.5);d.setFont("helvetica","bold");d.setFontSize(8.5);d.text(g.n+". "+g.title,L+14,y+3.9);y+=5.5;line(y);
+      g.items.forEach(([c,t])=>{brk(5.5);const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";d.setFont("helvetica","normal");d.setFontSize(8.5);d.setTextColor(93,107,122);d.text(c,L+2,y+3.9);d.setTextColor(20);d.text(t,L+18,y+3.9);
+        d.setFont("helvetica","bold");if(v==="NG")d.setTextColor(179,38,30);else d.setTextColor(31,122,74);d.text(v,131,y+3.9);d.setTextColor(20);d.setFont("helvetica","normal");
+        let rm=i.remarks?.[k]||"";if(k==="B-4b"&&(i.cctvId||i.cctvPw))rm=`QR ID: ${i.cctvId||"-"}`+(i.cctvPw?`  PW: ${i.cctvPw}`:"")+(rm?"  "+rm:"");if(k==="B-4a"&&i.led)rm="LED: "+i.led+(rm?"  "+rm:"");
+        d.setFontSize(7.5);d.text(d.splitTextToSize(rm,R-146)[0]||"",146,y+3.9);y+=5.5;line(y,225)})})});
+  if(i.overall){y+=4;brk(14);d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(93,107,122);d.text("OVERALL REMARKS",L,y);y+=4;d.setFont("helvetica","normal");d.setTextColor(20);d.setFontSize(9);const ls=d.splitTextToSize(i.overall,R-L);d.text(ls,L,y);y+=ls.length*4.2}
+  y+=6;brk(44);
+  const col=(x,title,name,user,when,sig)=>{d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(title,x,y);d.setDrawColor(29,79,145);d.line(x,y+1.5,x+82,y+1.5);
+    d.setTextColor(20);if(sig){try{d.addImage(sig,sig.startsWith("data:image/jpeg")?"JPEG":"PNG",x,y+3,54,18)}catch(e){}}
+    d.setDrawColor(150);d.line(x,y+22,x+82,y+22);d.setFont("helvetica","normal");d.setFontSize(8.5);d.text("Name: "+(name||"-")+(user?" ("+user+")":""),x,y+27);d.text("Date: "+(when?dt(when):"-"),x,y+32)};
+  col(L,"CHECKED BY",i.checkedName,i.checkedBy,i.checkedAt,null);
+  col(110,"VERIFIED BY",i.verifiedName,i.verifiedBy,i.verifiedAt,i.signature);
+  if(i.verifyComment){d.setFontSize(8);d.text("Comment: "+i.verifyComment,110,y+37)}
+  const n=d.getNumberOfPages();for(let p=1;p<=n;p++){d.setPage(p);d.setFontSize(7.5);d.setTextColor(120);d.text(`AC Charger Inspection Report · ${i.pileId} · Page ${p} of ${n}`,105,290,{align:"center"})}
+  d.save(`QC_${i.pileId}_${i.day}.pdf`);toast("PDF downloaded")
+}
+async function exportCsv(){
+  const list=applyFilt(S.insp,S.tab!=="dash");
+  const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","Result","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","CCTV LED","CCTV QR ID","Pile ID input",...ITEMS.map(i=>i.code)];
+  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,i.status,i.status==="PASS"?"FG":"REJECT",(i.ngItems||[]).length,(i.ngItems||[]).map(k=>ITEM[k]?.code+" "+ITEM[k]?.text).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.led||"",i.cctvId||"",i.pileMethod==="key"?"Key in":"Scan",...ITEMS.map(t=>i.results?.[t.key]||"")]);
+  const csv="﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`QC_records_${S.filt.from||"all"}_${S.filt.to||"all"}.csv`;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("CSV downloaded")
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("[data-act]");if(!t)return;
+  if(e.target.closest('[data-stop]')&&t.dataset.act==="open")return;
+  const a=t.dataset.act,f=S.form;
+  switch(a){
+    case"tab":S.tab=t.dataset.tab;S.detail=null;S.acctEdit=null;render();break;
+    case"logout":logout();break;
+    case"refresh":await loadData();toast("Records updated");break;
+    case"demo":location.hash="demo";DEMO=true;start();break;
+    case"exitdemo":location.hash="";location.reload();break;
+    case"retry":start();break;
+    case"reconfig":ls("czqc-api",null);API="";S.phase="config";render();break;
+    case"demologin":$("#l-user").value=t.dataset.u;$("#l-pin").value=t.dataset.p;$("#login-form").requestSubmit();break;
+    case"livescan":startLive(t.dataset.target);break;
+    case"closescan":stopLive();break;
+    case"res":if(t.dataset.key==="B-4a")break;f.res[t.dataset.key]=f.res[t.dataset.key]===t.dataset.v?undefined:t.dataset.v;if(!f.res[t.dataset.key])delete f.res[t.dataset.key];saveDraft();updateFormUI();break;
+    case"allok":t.dataset.keys.split(",").forEach(k=>f.res[k]="OK");saveDraft();updateFormUI();break;
+    case"panel":f.panel=f.panel===t.dataset.v?"":t.dataset.v;saveDraft();updateFormUI();break;
+    case"clearform":{const k=f.batchId;S.form=blankForm();S.form.batchId=k;saveDraft();$("#view").innerHTML=viewHtml();afterRender();toast("Form cleared");break}
+    case"submit":submitForm();break;
+    case"open":S.detail=t.dataset.id;$("#view").innerHTML=viewHtml();afterRender();window.scrollTo({top:0});break;
+    case"back":S.detail=null;PAD=null;$("#view").innerHTML=viewHtml();afterRender();break;
+    case"sel":t.checked?S.sel.add(t.dataset.id):S.sel.delete(t.dataset.id);if($("#v-btn"))$("#v-btn").textContent=`Verify ${S.sel.size} selected`;break;
+    case"selall":document.querySelectorAll('[data-act="sel"]').forEach(c=>{c.checked=t.checked;t.checked?S.sel.add(c.dataset.id):S.sel.delete(c.dataset.id)});if($("#v-btn"))$("#v-btn").textContent=`Verify ${S.sel.size} selected`;break;
+    case"padclear":PAD?.clear();break;
+    case"verifysel":verify([...S.sel],$("#v-err"),t);break;
+    case"verifyone":verify([t.dataset.id],$("#v-err"),t);break;
+    case"pdf":{const i=S.insp.find(x=>x.id===t.dataset.id);if(i)makePdf(i);break}
+    case"csv":exportCsv();break;
+    case"togglebatch":{const b=S.batches.find(x=>x.id===t.dataset.id);try{await api("toggleBatch",{id:b.id});await loadData(true);toast(`Batch ${b.batchNo} ${b.open===false?"reopened":"closed"}`)}catch(er){toast(dbErr(er))}break}
+    case"delbatch":{if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirm delete";return}try{await api("deleteBatch",{id:t.dataset.id});await loadData(true);toast("Batch deleted")}catch(er){toast(dbErr(er))}break}
+    case"resetpin":S.acctEdit=t.dataset.u;$("#view").innerHTML=viewHtml();$("#rp-pin")?.focus();break;
+    case"cancelpin":S.acctEdit=null;$("#view").innerHTML=viewHtml();break;
+    case"savepin":{const p=$("#rp-pin").value.trim(),u=t.dataset.u;if(!validPin(p)){$("#a-err2").textContent="PIN must be 4 to 8 digits.";return}
+      try{await api("resetPin",{username:u,pin:p});S.acctEdit=null;toast(`PIN updated for ${u}`);$("#view").innerHTML=viewHtml()}catch(er){$("#a-err2").textContent=dbErr(er)}break}
+    case"toggleacct":{const u=t.dataset.u,ac=S.accounts[u];try{await api("toggleAccount",{username:u});await loadData(true);toast(`${u} ${ac.active===false?"activated":"deactivated"}`)}catch(er){$("#a-err2").textContent=dbErr(er)}break}
+  }
+});
+document.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="pileId")updateFormUI()}
+  if(t.dataset.rem&&S.form){S.form.rem[t.dataset.rem]=t.value;saveDraft();updateFormUI()}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.scan){handleScan(t);return}
+  if(t.dataset.f==="batchId"&&S.form){S.form.batchId=t.value;saveDraft()}
+  if(t.dataset.f==="led"&&S.form){S.form.led=t.value;if(!t.value)delete S.form.res["B-4a"];else S.form.res["B-4a"]=t.value==="Green blinking"?"OK":"NG";saveDraft();updateFormUI()}
+  if(t.dataset.f==="pileMethod"&&S.form){S.form.pileMethod=t.value;S.form.pileId="";S.form.reinspect=false;saveDraft();$("#view").innerHTML=viewHtml();afterRender();(t.value==="key"?$("#f-pile"):null)?.focus()}
+  if(t.dataset.filt){S.filt[t.dataset.filt]=t.value;$("#view").innerHTML=viewHtml();afterRender()}
+});
+document.addEventListener("paste",e=>{
+  const t=e.target;if(!t||!t.dataset||!t.dataset.scanpaste||!S.form)return;
+  const items=[...((e.clipboardData&&e.clipboardData.items)||[])];
+  const img=items.find(i=>i.kind==="file"&&i.type.startsWith("image/"));
+  if(img){e.preventDefault();applyScanFile(t.dataset.scanpaste,img.getAsFile());return}
+  const txt=e.clipboardData&&e.clipboardData.getData("text");
+  if(txt){e.preventDefault();setScanValue(t.dataset.scanpaste,txt.split(/\r?\n/)[0]);toast("Pasted: "+txt.split(/\r?\n/)[0].trim())}
+});
+document.addEventListener("keydown",e=>{const t=e.target;if(e.key==="Enter"&&t.dataset&&t.dataset.scanpaste){e.preventDefault();setScanValue(t.dataset.scanpaste,t.value);toast("Saved: "+t.value.trim())}});
+document.addEventListener("submit",async e=>{
+  e.preventDefault();const id=e.target.id;
+  if(id==="login-form"){const u=cleanUser($("#l-user").value),p=$("#l-pin").value.trim(),err=$("#l-err"),btn=$("#l-btn");err.textContent="";
+    if(!u||!p){err.textContent="Key in your username and PIN.";return}
+    btn.disabled=true;btn.textContent="Logging in…";
+    try{const r=await api("login",{username:u,pin:p});TOKEN=r.token;if(!DEMO)ls("czqc-token",TOKEN);setSession(r.user);render();toast(`Welcome, ${r.user.name}`);await loadData()}
+    catch(er){err.textContent=er.message;$("#l-pin").value="";btn.disabled=false;btn.textContent="Log in"}}
+  if(id==="setup-form"){const n=$("#su-name").value.trim(),u=cleanUser($("#su-user").value),p=$("#su-pin").value.trim(),err=$("#su-err");
+    if(!n)return err.textContent="Key in your full name.";if(!validUser(u))return err.textContent="Username must be 3–30 letters, numbers, dot, dash or underscore.";if(!validPin(p))return err.textContent="PIN must be 4 to 8 digits.";
+    try{const r=await api("bootstrap",{name:n,username:u,pin:p});TOKEN=r.token;if(!DEMO)ls("czqc-token",TOKEN);S.phase="ready";setSession(r.user);render();await loadData()}catch(er){err.textContent=dbErr(er)}}
+  if(id==="config-form"){const v=$("#c-url").value.trim(),err=$("#c-err");if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(v)){err.textContent="That does not look like a Google Apps Script Web app link. It starts with https://script.google.com/macros/s/";return}ls("czqc-api",v);API=v;start()}
+  if(id==="pin-form"){const o=$("#p-old").value.trim(),n1=$("#p-new").value.trim(),n2=$("#p-new2").value.trim(),err=$("#p-err");err.textContent="";
+    if(!validPin(n1))return err.textContent="New PIN must be 4 to 8 digits.";if(n1!==n2)return err.textContent="The two new PINs do not match.";
+    try{await api("changePin",{oldPin:o,newPin:n1});e.target.reset();toast("PIN changed")}catch(er){err.textContent=dbErr(er)}}
+  if(id==="acct-form"){const n=$("#a-name").value.trim(),u=cleanUser($("#a-user").value),p=$("#a-pin").value.trim(),r=$("#a-role").value,err=$("#a-err");err.textContent="";
+    if(!n)return err.textContent="Key in the full name.";if(!validUser(u))return err.textContent="Username must be 3–30 letters, numbers, dot, dash or underscore.";if(S.accounts[u])return err.textContent=`Username ${u} is already taken.`;if(!validPin(p))return err.textContent="PIN must be 4 to 8 digits.";
+    try{await api("createAccount",{name:n,username:u,pin:p,role:r});toast(`Account ${u} created`);e.target.reset();await loadData(true)}catch(er){err.textContent=dbErr(er)}}
+  if(id==="batch-form"){const no=$("#b-no").value.trim(),q=parseInt($("#b-qty").value,10),dte=$("#b-date").value,m=$("#b-model").value.trim()||MODEL,err=$("#b-err");err.textContent="";
+    if(!no)return err.textContent="Key in the batch number.";if(!(q>0))return err.textContent="Incoming quantity must be at least 1.";if(S.batches.some(b=>b.batchNo.toLowerCase()===no.toLowerCase()))return err.textContent=`Batch ${no} already exists.`;
+    try{await api("createBatch",{batchNo:no,incomingQty:q,receivedDate:dte||today(),model:m});toast(`Batch ${no} added`);$("#b-no").value="";$("#b-qty").value="";await loadData(true)}catch(er){err.textContent=dbErr(er)}}
+});
+</script>
+</body>
+</html>
