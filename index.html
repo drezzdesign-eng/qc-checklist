@@ -391,7 +391,7 @@ function afterRender(){
 function loginView(){return `<form class="sheet login" id="login-form">
   <div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>QC Inspection</h1></div>
   ${DEMO?`<div class="note"><b>DEMO MODE.</b> Sample data only. Changes reset when you reload.</div><div class="field"><span class="lbl">Quick login</span><div class="row">${DEMO_USERS.map(([u,p,n,r])=>`<button type="button" class="btn sm" data-act="demologin" data-u="${u}" data-p="${p}">${ROLES[r]}: ${u}</button>`).join("")}</div></div>`:""}
-  <p class="muted small">Log in with the username and PIN given by your admin.</p>
+  <p class="muted small">Log in with the username and PIN given by your admin. <span class="mono" style="opacity:.6">${typeof APP_VERSION!=="undefined"?APP_VERSION:""}</span></p>
   <div class="field"><label for="l-user">Username</label><input type="text" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
   <div class="field"><label for="l-pin">PIN</label><input type="password" id="l-pin" inputmode="numeric" autocomplete="current-password" maxlength="8"></div>
   <div class="err" id="l-err" aria-live="polite"></div>
@@ -478,13 +478,15 @@ function setScanValue(target,v){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
+const APP_VERSION="v1.3";
 let LIVE=null;
 async function startLive(target){
   const m=document.createElement("div");m.className="scanmodal";m.id="scanmodal";
   m.innerHTML=`<div class="t">${target==="pileId"?"Scan charging pile ID":"Scan CCTV QR ID"}</div>
     <div id="reader"><video id="scan-video" playsinline muted autoplay></video><div class="aim"></div></div>
     <div class="h" id="scan-hint">Starting camera…</div>
-    <button type="button" class="btn" data-act="closescan">Cancel</button>`;
+    <div class="row" style="justify-content:center"><button type="button" class="btn primary" data-act="snapscan" id="snap-btn" disabled>Snap</button><button type="button" class="btn" data-act="closescan">Cancel</button></div>
+    <div class="h" id="scan-stat" style="font-size:11px;opacity:.7">${APP_VERSION}</div>`;
   document.body.append(m);
   const video=$("#scan-video"),hint=$("#scan-hint");
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){hint.textContent="This browser cannot open the camera here. Open the link in Safari (not inside another app), or use Photo.";return}
@@ -500,14 +502,15 @@ async function startLive(target){
   if(!$("#scanmodal")){stream.getTracks().forEach(t=>t.stop());return}
   video.srcObject=stream;
   try{await video.play()}catch(e){}
-  hint.textContent="Point the camera at the QR or barcode and hold steady.";
+  hint.textContent="Point at the QR or barcode. It reads automatically, or tap Snap.";
+  $("#snap-btn").disabled=false;
   const cv=document.createElement("canvas"),cx=cv.getContext("2d",{willReadFrequently:true});
   const det=("BarcodeDetector" in window)?(()=>{try{return new BarcodeDetector()}catch(e){return null}})():null;
-  LIVE={stream,running:true,frame:0};
+  LIVE={stream,running:true,frame:0,target,video};
   const tick=async()=>{
     if(!LIVE||!LIVE.running)return;
     if(video.readyState>=2&&video.videoWidth){
-      LIVE.frame++;
+      LIVE.frame++;if(LIVE.frame%10===0){const st=$("#scan-stat");if(st)st.textContent=`${APP_VERSION} · camera ${video.videoWidth}×${video.videoHeight} · scanning`}
       let txt=null;
       if(det){try{const r=await det.detect(video);if(r&&r[0])txt=r[0].rawValue}catch(e){}}
       if(!txt){
@@ -520,7 +523,18 @@ async function startLive(target){
     }
     setTimeout(tick,120);
   };
-  tick();
+  LIVE.tick=tick;tick();
+}
+async function snapLive(){
+  if(!LIVE||!LIVE.video)return;const v=LIVE.video,target=LIVE.target;
+  if(!v.videoWidth){toast("Camera is not ready yet.");return}
+  const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
+  const btn=$("#snap-btn");btn.disabled=true;btn.textContent="Reading…";LIVE.running=false;
+  const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.92));
+  let code=null;try{code=await decodeQR(blob)}catch(e){}
+  if(code){stopLive();setScanValue(target,code);toast("Scanned: "+String(code).trim());return}
+  btn.disabled=false;btn.textContent="Snap";$("#scan-hint").textContent="No code found in that shot. Move closer so the code fills the box, keep it sharp, and try again.";
+  LIVE.running=true;setTimeout(()=>LIVE&&LIVE.tick&&LIVE.tick(),100);
 }
 function stopLive(){if(LIVE){LIVE.running=false;try{LIVE.stream.getTracks().forEach(t=>t.stop())}catch(e){}}LIVE=null;$("#scanmodal")?.remove()}
 async function loadImg(file){
@@ -819,6 +833,7 @@ document.addEventListener("click",async e=>{
     case"demologin":$("#l-user").value=t.dataset.u;$("#l-pin").value=t.dataset.p;$("#login-form").requestSubmit();break;
     case"livescan":startLive(t.dataset.target);break;
     case"closescan":stopLive();break;
+    case"snapscan":snapLive();break;
     case"res":if(t.dataset.key==="B-4a")break;f.res[t.dataset.key]=f.res[t.dataset.key]===t.dataset.v?undefined:t.dataset.v;if(!f.res[t.dataset.key])delete f.res[t.dataset.key];saveDraft();updateFormUI();break;
     case"allok":t.dataset.keys.split(",").forEach(k=>f.res[k]="OK");saveDraft();updateFormUI();break;
     case"panel":f.panel=f.panel===t.dataset.v?"":t.dataset.v;saveDraft();updateFormUI();break;
