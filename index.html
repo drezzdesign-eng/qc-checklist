@@ -9,7 +9,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 /* Layout: app bar + role tabs over a single working column; QC form rows, data tables, KPI strip for admin */
 :root{
@@ -163,7 +162,9 @@ svg text{font-family:var(--f-body)}
 /* live scanner */
 .scanmodal{position:fixed;inset:0;z-index:30;background:rgba(5,10,18,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
 .scanmodal #reader{width:min(92vw,440px);background:#000;border-radius:8px;overflow:hidden}
-.scanmodal #reader video{width:100%!important;height:auto!important;display:block}
+.scanmodal #reader{position:relative}
+.scanmodal #reader video{width:100%;height:auto;display:block;max-height:60vh;object-fit:cover}
+.scanmodal .aim{position:absolute;inset:10%;border:3px solid rgba(255,255,255,.85);border-radius:10px;box-shadow:0 0 0 2000px rgba(0,0,0,.25);pointer-events:none}
 .scanmodal .t{color:#fff;font-family:var(--f-display);font-size:20px;font-weight:700;letter-spacing:.04em}
 .scanmodal .h{color:#c9d3de;font-size:14px;text-align:center;max-width:440px}
 .scanmodal .btn{min-width:140px}
@@ -476,25 +477,52 @@ function setScanValue(target,v){
   saveDraft();$("#view").innerHTML=viewHtml();afterRender();
 }
 
-/* ---------- live camera scanner ---------- */
+/* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
 let LIVE=null;
 async function startLive(target){
-  if(!window.Html5Qrcode){toast("The scanner did not load. Check the internet connection, or use Photo.");return}
   const m=document.createElement("div");m.className="scanmodal";m.id="scanmodal";
-  m.innerHTML=`<div class="t">${target==="pileId"?"Scan charging pile ID":"Scan CCTV QR ID"}</div><div id="reader"></div><div class="h" id="scan-hint">Point the camera at the code and hold steady.</div><button type="button" class="btn" data-act="closescan">Cancel</button>`;
+  m.innerHTML=`<div class="t">${target==="pileId"?"Scan charging pile ID":"Scan CCTV QR ID"}</div>
+    <div id="reader"><video id="scan-video" playsinline muted autoplay></video><div class="aim"></div></div>
+    <div class="h" id="scan-hint">Starting camera…</div>
+    <button type="button" class="btn" data-act="closescan">Cancel</button>`;
   document.body.append(m);
-  const F=window.Html5QrcodeSupportedFormats||{};
-  const formats=[F.QR_CODE,F.CODE_128,F.CODE_39,F.DATA_MATRIX,F.EAN_13,F.ITF].filter(x=>x!==undefined);
-  try{
-    LIVE=new Html5Qrcode("reader",{formatsToSupport:formats,verbose:false});
-    await LIVE.start({facingMode:"environment"},{fps:12,qrbox:(w,h)=>{const s=Math.floor(Math.min(w,h)*.75);return{width:s,height:target==="pileId"?Math.floor(s*.75):s}},aspectRatio:1.333},
-      txt=>{if(navigator.vibrate)navigator.vibrate(80);stopLive();setScanValue(target,txt);toast("Scanned: "+String(txt).trim())},()=>{});
-  }catch(e){
-    const msg=String(e&&(e.name||e.message||e));
-    $("#scan-hint").textContent=/NotAllowed|Permission/i.test(msg)?"Camera permission was refused. Allow camera access for this site in your browser settings, then try again.":/NotFound|Overconstrained/i.test(msg)?"No camera was found on this device. Use Photo or key in the ID.":"The camera could not start. Close other apps using the camera and try again, or use Photo.";
-  }
+  const video=$("#scan-video"),hint=$("#scan-hint");
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){hint.textContent="This browser cannot open the camera here. Open the link in Safari (not inside another app), or use Photo.";return}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}})}
+  catch(e){
+    const n=(e&&e.name)||"";
+    hint.textContent=n==="NotAllowedError"?"Camera permission was refused. iPhone: Settings > Safari > Camera > Allow (or tap “aA” in the address bar > Website Settings > Camera > Allow), then try again.":
+      n==="NotFoundError"||n==="OverconstrainedError"?"No camera was found. Use Photo or key in the ID.":
+      n==="NotReadableError"?"The camera is being used by another app. Close it and try again.":
+      "The camera could not start ("+(n||String(e))+"). Use Photo or key in the ID.";
+    return}
+  if(!$("#scanmodal")){stream.getTracks().forEach(t=>t.stop());return}
+  video.srcObject=stream;
+  try{await video.play()}catch(e){}
+  hint.textContent="Point the camera at the QR or barcode and hold steady.";
+  const cv=document.createElement("canvas"),cx=cv.getContext("2d",{willReadFrequently:true});
+  const det=("BarcodeDetector" in window)?(()=>{try{return new BarcodeDetector()}catch(e){return null}})():null;
+  LIVE={stream,running:true,frame:0};
+  const tick=async()=>{
+    if(!LIVE||!LIVE.running)return;
+    if(video.readyState>=2&&video.videoWidth){
+      LIVE.frame++;
+      let txt=null;
+      if(det){try{const r=await det.detect(video);if(r&&r[0])txt=r[0].rawValue}catch(e){}}
+      if(!txt){
+        const W=video.videoWidth,H=video.videoHeight,side=Math.min(W,H)*.8,sx=(W-side)/2,sy=(H-side)/2,sz=Math.min(720,side);
+        cv.width=sz;cv.height=sz;cx.drawImage(video,sx,sy,side,side,0,0,sz,sz);
+        if(window.jsQR){const r=jsQR(cx.getImageData(0,0,sz,sz).data,sz,sz,{inversionAttempts:LIVE.frame%2?"dontInvert":"onlyInvert"});if(r&&r.data)txt=r.data}
+        if(!txt&&LIVE.frame%3===0){const rd=zxReader();if(rd){const Z=window.ZXing;try{const res=rd.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv))));if(res)txt=res.getText()}catch(e){}}}
+      }
+      if(txt){if(navigator.vibrate)navigator.vibrate(80);stopLive();setScanValue(target,txt);toast("Scanned: "+String(txt).trim());return}
+    }
+    setTimeout(tick,120);
+  };
+  tick();
 }
-async function stopLive(){try{if(LIVE&&LIVE.isScanning)await LIVE.stop();LIVE&&LIVE.clear()}catch(e){}LIVE=null;$("#scanmodal")?.remove()}
+function stopLive(){if(LIVE){LIVE.running=false;try{LIVE.stream.getTracks().forEach(t=>t.stop())}catch(e){}}LIVE=null;$("#scanmodal")?.remove()}
 async function loadImg(file){
   try{return await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){}
   try{return await createImageBitmap(file)}catch(e){}
