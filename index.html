@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1d4f91">
+<meta name="theme-color" content="#ffffff">
 <title>C Zero QC Inspection</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
 /* Layout: app bar + role tabs over a single working column; QC form rows, data tables, KPI strip for admin */
-:root{
+:root{color-scheme:light;
   --bg:#eef1f4; --paper:#ffffff; --ink:#18212b; --muted:#5d6b7a; --line:#d5dce3; --soft:#f5f7f9;
   --accent:#1d4f91; --accent-ink:#ffffff; --accent-soft:#e3ebf6;
   --ok:#1f7a4a; --ok-bg:#e3f3ea; --ng:#b3261e; --ng-bg:#fbe5e3; --hold:#a35a00; --hold-bg:#fdf0dc;
@@ -19,14 +19,6 @@
   --f-body:"Barlow",system-ui,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,monospace;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#10151b; --paper:#18202a; --ink:#e4e9ef; --muted:#93a1b0; --line:#2c3743; --soft:#1e2833;
-  --accent:#6fa3e8; --accent-ink:#0d1520; --accent-soft:#1d2d44;
-  --ok:#5cc58b; --ok-bg:#163326; --ng:#f2867d; --ng-bg:#3a1c1a; --hold:#f0b45c; --hold-bg:#3a2a12; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#10151b; --paper:#18202a; --ink:#e4e9ef; --muted:#93a1b0; --line:#2c3743; --soft:#1e2833;
-  --accent:#6fa3e8; --accent-ink:#0d1520; --accent-soft:#1d2d44;
-  --ok:#5cc58b; --ok-bg:#163326; --ng:#f2867d; --ng-bg:#3a1c1a; --hold:#f0b45c; --hold-bg:#3a2a12; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;margin:0;padding:0 16px}
 .wrap{max-width:980px;margin:0 auto;padding-block:16px 56px;display:flex;flex-direction:column;gap:16px}
@@ -56,6 +48,9 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 
 /* app bar */
 .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brandrow{display:flex;align-items:center;gap:14px;min-width:0}
+.brandlogo{height:46px;width:auto;flex:none}
+.login .brandlogo{height:56px}
 .brand .co{font-family:var(--f-display);font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-size:12px}
 .brand h1{font-size:24px;font-weight:700;line-height:1.05}
 .who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
@@ -399,7 +394,7 @@ async function start(){
 }
 function setSession(user){S.session=user;S.tab=TABS[user.role][0][0];S.detail=null;loadDraft();startPolling()}
 function logout(silent){if(TOKEN&&!DEMO)ls("czqc-token",null);TOKEN="";S.session=null;S.detail=null;S.form=null;S.insp=[];S.batches=[];S.accounts={};clearInterval(POLL);render()}
-function brandHead(sub){return `<div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>${sub||"QC Inspection"}</h1></div>`}
+function brandHead(sub,co){return `<div class="brandrow"><img class="brandlogo" src="${LOGO_PNG}" alt="C Zero Sdn Bhd"><div class="brand"><div class="co">${co||"Quality Control"}</div><h1>${sub||"QC Inspection"}</h1></div></div>`}
 function configView(){return `<form class="sheet login" id="config-form">${brandHead()}
   <p class="muted small">Paste the Google Sheet Web app link the admin gave you. You only need to do this once on each phone or computer.</p>
   <div class="field"><label for="c-url">Web app link</label><input type="text" id="c-url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="none" spellcheck="false"></div>
@@ -432,7 +427,7 @@ function shell(){
   const s=me();
   const tabs=TABS[s.role].map(([k,l])=>`<button type="button" role="tab" data-act="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}${k==="verify"?`<span class="badge" id="badge-verify" ${pendingCount()?"":"hidden"}>${pendingCount()}</span>`:""}</button>`).join("");
   return `<header class="sheet" style="display:flex;flex-direction:column;gap:12px;padding-bottom:0">
-    <div class="bar"><div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>AC Charger QC Inspection</h1></div>
+    <div class="bar"><div class="brandrow"><img class="brandlogo" src="${LOGO_PNG}" alt="C Zero Sdn Bhd"><div class="brand"><div class="co">Quality Control</div><h1>AC Charger QC Inspection</h1></div></div>
     <div class="who"><div style="text-align:right"><div><b>${esc(s.name)}</b></div><div class="small muted mono">${esc(s.username)}</div></div><span class="role">${ROLES[s.role]}</span>${DEMO?'<span class="status demo-tag">DEMO</span>':""}<button class="btn sm" type="button" data-act="refresh" title="Load the latest records">Refresh</button><button class="btn sm" type="button" data-act="tab" data-tab="pin">PIN</button><button class="btn sm" type="button" data-act="logout">Log out</button></div></div>
     ${S.backendV<2?`<div class="warn"><b>Update needed:</b> the Google Sheet script is an older version, so new inspections cannot be submitted yet. ${s.role==="admin"?"Paste the new Code.gs into Apps Script and deploy a new version.":"Ask the admin to update the system."}</div>`:""}
     <nav class="tabs" role="tablist">${tabs}</nav></header>`;
@@ -451,7 +446,7 @@ function afterRender(){
 
 /* ---------- login & setup ---------- */
 function loginView(){return `<form class="sheet login" id="login-form">
-  <div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>QC Inspection</h1></div>
+  ${brandHead()}
   ${DEMO?`<div class="note"><b>DEMO MODE.</b> Sample data only. Changes reset when you reload.</div><div class="field"><span class="lbl">Quick login</span><div class="row">${DEMO_USERS.map(([u,p,n,r])=>`<button type="button" class="btn sm" data-act="demologin" data-u="${u}" data-p="${p}">${ROLES[r]}: ${u}</button>`).join("")}</div></div>`:""}
   <p class="muted small">Log in with the username and PIN given by your admin. <span class="mono" style="opacity:.6">${typeof APP_VERSION!=="undefined"?APP_VERSION:""}</span></p>
   <div class="field"><label for="l-user">Username</label><input type="text" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
@@ -466,7 +461,7 @@ function pinView(){return `<section class="sheet" style="display:flex;flex-direc
   <div class="err" id="p-err"></div><div class="row"><button class="btn primary" type="submit">Save new PIN</button></div></form></section>`}
 function setupView(){
   return `<form class="sheet login" id="setup-form">
-  <div class="brand"><div class="co">First-time setup</div><h1>Create the admin account</h1></div>
+  ${brandHead("Create the admin account","First-time setup")}
   <p class="muted small">This account manages staff, verifiers, batches and the dashboard. You can add more accounts after logging in.</p>
   <div class="field"><label for="su-name">Full name</label><input type="text" id="su-name"></div>
   <div class="field"><label for="su-user">Username</label><input type="text" id="su-user" autocapitalize="none" spellcheck="false" placeholder="e.g. shahrol"></div>
@@ -605,7 +600,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.3";
+const APP_VERSION="v2.4";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
