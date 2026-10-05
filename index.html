@@ -103,6 +103,9 @@ label.btn.primary{color:var(--accent-ink)}
 .scanbox input.val-in.has{border-color:var(--ok);background:var(--ok-bg)}
 .scanhelp{font-size:12px;color:var(--muted);flex-basis:100%}
 .scanprev{width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.st-rej{background:var(--ng-bg);color:var(--ng)}
+.kpi.hold .v{color:var(--hold)}
+.autotag{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:3px;vertical-align:1px}
 .rbadge{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.06em;min-width:48px;padding:5px 10px;border-radius:4px;text-align:center;cursor:default;display:inline-block}
 .rbadge.ok{background:var(--ok-bg);color:var(--ok)} .rbadge.ng{background:var(--ng);color:var(--paper)} .rbadge.none{background:var(--soft);color:var(--muted)}
 .readonly{display:flex;gap:8px;align-items:center;background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:8px 12px;font-size:14px;color:var(--muted)}
@@ -131,7 +134,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--soft)}
 .empty{padding:28px 12px;text-align:center;color:var(--muted)}
 
 /* dashboard */
-.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
 .kpi{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .kpi .v{font-family:var(--f-display);font-weight:700;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums}
 .kpi .s{font-size:12px;color:var(--muted)}
@@ -150,6 +153,7 @@ svg text{font-family:var(--f-body)}
 .signoff .col{display:flex;flex-direction:column;gap:6px;min-width:0}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:4px;font-size:14px;z-index:20;max-width:90vw}
 
+@media (max-width:960px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){
   .grid2,.signoff{grid-template-columns:1fr}
@@ -192,7 +196,7 @@ svg text{font-family:var(--f-body)}
 
 <script>
 /* ---------- checklist definition ---------- */
-const SECTIONS=[
+const SECTIONS_V1=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
   {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
   {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
@@ -202,10 +206,39 @@ const SECTIONS=[
   {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","Status light function and any light leaking"],["1c","Logo light function and any light leaking"],["1d","Ambient light function and any light leaking"],["1e","RFID charging test"],["1f","Remote charging test"],["1g","Direct charging test"]]},
   {n:"2",title:"LCD",items:[["2a","Display working properly"],["2b","Display condition"]]},
   {n:"3",title:"Communications",items:[["3a","WiFi connection"],["3b","OCPP URL (correct server URL)"]]},
-  {n:"4",title:"CCTV",items:[["4a","CCTV LED indicator"],["4b","CCTV QR ID"]]},
+  {n:"4",title:"CCTV",items:[["4a","CCTV LED indicator",{led:"led"}],["4b","CCTV QR ID",{scan:"cctvId"}]]},
   {n:"5",title:"Installation Accessories & Documents",items:[["5a","Wall mount bracket"],["5b","Wall mount screw pack"],["5c","User manual"]]}]}];
-const ITEMS=[];SECTIONS.forEach(s=>s.groups.forEach(g=>g.items.forEach(([c,t])=>ITEMS.push({key:s.ltr+"-"+c,code:s.ltr+c,text:t,group:s.ltr+g.n+" "+g.title}))));
-const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i]));
+const SECTIONS=[
+ {ltr:"A",title:"APPEARANCE CHECK",groups:[
+  {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
+  {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
+  {n:"3",title:"LCD",items:[["3a","Protective screen condition"],["3b","LCD touch screen condition"]]},
+  {n:"4",title:"Nameplate",items:[["4a","Nameplate fixed properly"],["4b","Nameplate ID matches charging pile ID",{scan:"nameplateId",match:true}],["4c","Packaging box ID matches charging pile ID",{scan:"boxId",match:true}]]}]},
+ {ltr:"B",title:"FUNCTIONS CHECK",groups:[
+  {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","LCD touch screen display working properly"],["1c","WiFi connection"],["1d","OCPP URL (correct server URL)"],["1e","Status light function and any light leaking"],["1f","Logo light function and any light leaking"],["1g","Ambient light function and any light leaking"],["1h","RFID charging mode test"],["1i","Plug & charge mode test"],["1j","CCTV indication light",{led:"led"}],["1k","CCTV ID",{scan:"cctvId",auto:true}],["1l","CCTV QR sticker condition"]]},
+  {n:"2",title:"P.Circle App",note:"Reminder: the P.Circle app must be UNBOUND from the charger after app testing is complete.",items:[["2a","P.Circle app BIND to charger test"],["2b","P.Circle app start charging test"],["2c","P.Circle app stop charging test"],["2d","P.Circle app bind to CCTV function test"],["2e","CCTV QR sticker matches CCTV unit ID"],["2f","P.Circle app UNBIND from charger"],["2g","CCTV indication light after UNBIND",{led:"led2"}]]},
+  {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]}];
+function flatItems(secs){const out=[];secs.forEach(s=>s.groups.forEach(g=>g.items.forEach(([c,t,o])=>out.push({key:s.ltr+"-"+c,code:s.ltr+c,text:t,opt:o||{},group:s.ltr+g.n+" "+g.title}))));return out}
+const ITEMS=flatItems(SECTIONS),ITEMS_V1=flatItems(SECTIONS_V1);
+const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i])),ITEM_V1=Object.fromEntries(ITEMS_V1.map(i=>[i.key,i]));
+function secFor(i){return Number(i&&i.cl)===2?SECTIONS:SECTIONS_V1}
+function itemOf(i,k){return (Number(i&&i.cl)===2?ITEM:ITEM_V1)[k]}
+const SCAN_LABEL={pileId:"Charging pile ID",nameplateId:"Nameplate ID",boxId:"Packaging box ID",cctvId:"CCTV ID"};
+function normId(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
+function idsMatch(a,b){a=normId(a);b=normId(b);if(!a||!b)return false;if(a===b)return true;return Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))}
+function applyAutos(f){
+  ITEMS.forEach(it=>{const o=it.opt,k=it.key;
+    if(o.led){if(f[o.led])f.res[k]=f[o.led]==="Green blinking"?"OK":"NG";else delete f.res[k]}
+    else if(o.scan&&o.match){const v=f[o.scan];if(v&&f.pileId){const okm=idsMatch(v,f.pileId);f.res[k]=okm?"OK":"NG";if(!okm&&!(f.rem[k]||"").trim())f.rem[k]="ID mismatch: "+v}else delete f.res[k]}
+    else if(o.scan&&o.auto){if((f[o.scan]||"").trim())f.res[k]="OK";else delete f.res[k]}
+  });
+}
+function isAuto(o){return !!(o&&(o.led||(o.scan&&(o.match||o.auto))))}
+const STATUS_INFO={PASS:["st-pass","PASS · FG"],QUARANTINE:["st-hold","QUARANTINE"],REJECT:["st-rej","REJECT"],"ON HOLD":["st-hold","ON HOLD"]};
+
+function statusPill(i){const s=STATUS_INFO[i.status];return s?`<span class="status ${s[0]}">${s[1]}</span>`:'<span class="status st-pending">AWAITING VERIFIER</span>'}
+function statusText(s){return s==="PASS"?"PASS (FG)":s==="QUARANTINE"?"QUARANTINE":s==="REJECT"?"REJECT":s==="ON HOLD"?"ON HOLD":"Awaiting verifier"}
+function isQuar(i){return i.status==="QUARANTINE"||i.status==="ON HOLD"}
 const PRODUCT="SMART AC CHARGER 7KW", MODEL="E7-P2-001101", REV="REV : 001/EVCLR/2026";
 const LED_OPTS=["Green blinking","Green static","Red blinking","Red static"];
 const ROLES={staff:"Staff",verifier:"Verifier",admin:"Admin"};
@@ -240,7 +273,6 @@ function validUser(u){return /^[a-z0-9._-]{3,30}$/.test(u)}
 function validPin(p){return /^\d{4,8}$/.test(p)}
 function me(){return S.session}
 function acctName(u){return (S.accounts&&S.accounts[u]?.name)||u}
-function statusPill(i){return i.status==="PASS"?'<span class="status st-pass">PASS · FG</span>':'<span class="status st-hold">ON HOLD · REJECT</span>'}
 function verPill(i){return i.verified?'<span class="status st-ver">VERIFIED</span>':'<span class="status st-pending">PENDING</span>'}
 function dbErr(e){return (e&&e.message)||"Could not save. Check your connection and try again."}
 
@@ -249,22 +281,26 @@ const DEMO_USERS=[["admin","1111","Shahrol (Admin)","admin"],["farah","2222","Fa
 const M={acc:{},batches:[],insp:[],seeded:false};
 function demoSig(){const c=document.createElement("canvas");c.width=360;c.height=120;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,360,120);x.strokeStyle="#0c1f3a";x.lineWidth=3;x.lineCap="round";x.beginPath();
   let px=30,py=70;x.moveTo(px,py);for(let i=0;i<24;i++){px+=12;py=60+Math.sin(i*1.3)*24+(i%5?0:-14);x.lineTo(px,py)}x.stroke();return c.toDataURL("image/jpeg",.7)}
+
 async function seedDemo(){
   if(M.seeded)return;M.seeded=true;
   DEMO_USERS.forEach(([u,p,name,role])=>M.acc[u]={username:u,name,role,pin:p,active:true,createdAt:new Date().toISOString()});
   const B=[["b1","B2609-01",120,15],["b2","B2609-02",100,8],["b3","B2610-01",80,2]];
   B.forEach(([id,no,q,ago])=>M.batches.push({id,batchNo:no,incomingQty:q,receivedDate:daysAgo(ago),model:MODEL,open:true}));
-  const ngPool=["B-3a","B-3a","A-1a","A-1a","B-1b","B-1e","A-4b","B-4a","A-2a","B-2a"];
-  const REM={"B-3a":"Cannot connect to site WiFi","A-1a":"Scratch on side panel","B-1b":"Light leaking at bottom","B-1e":"RFID card not detected","A-4b":"ID mismatch","B-4a":"LED not blinking green","A-2a":"Print bubble","B-2a":"Screen flicker"};
+  const ngPool=["B-1c","B-1c","A-1a","A-1a","B-1e","B-1h","A-4b","B-1j","A-2a","B-2b","B-2g","A-3b"];
+  const REM={"B-1c":"Cannot connect to site WiFi","A-1a":"Scratch on side panel","B-1e":"Light leaking at bottom","B-1h":"RFID card not detected","A-4b":"ID mismatch","B-1j":"LED not blinking green","A-2a":"Print bubble","B-2b":"App could not start charging","B-2g":"LED red after unbind","A-3b":"Touch not responsive at corner"};
   const sig=demoSig();let seed=7;const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;let k=0;
   B.forEach(([bid,bno,q,ago])=>{const count=bid==="b1"?96:bid==="b2"?54:18;
     for(let i=0;i<count;i++){const dAgo=Math.max(0,ago-1-Math.floor(rnd()*Math.min(ago,10)));const d=new Date();d.setDate(d.getDate()-dAgo);d.setHours(8+Math.floor(rnd()*9),Math.floor(rnd()*60));
       const ng=[...new Set(rnd()<(bid==="b2"?.16:.09)?[ngPool[Math.floor(rnd()*ngPool.length)]].concat(rnd()<.2?[ngPool[Math.floor(rnd()*ngPool.length)]]:[]):[])];
       const res={};ITEMS.forEach(t=>res[t.key]=ng.includes(t.key)?"NG":"OK");const rem={};ng.forEach(x=>rem[x]=REM[x]||"Defect found");
       const who=rnd()<.55?["ali","Ali Hassan"]:["amir","Amir Rahman"];const ver=dAgo>1||rnd()<.4;k++;
-      M.insp.push({id:"s"+k,batchId:bid,batchNo:bno,pileId:"CZ7"+bno.slice(-4).replace("-","")+String(i+1).padStart(3,"0"),pileMethod:rnd()<.85?"scan":"key",product:PRODUCT,model:MODEL,panel:rnd()<.5?"A":"B",
-        results:res,remarks:rem,ngItems:ng,status:ng.length?"ON HOLD":"PASS",led:ng.includes("B-4a")?["Green static","Red blinking","Red static"][k%3]:"Green blinking",cctvId:"CZCAM"+(10000+k),cctvPw:"",
-        overall:ng.length?"Unit moved to rework area.":"",reinspect:false,checkedBy:who[0],checkedName:who[1],checkedAt:d.toISOString(),day:ymd(d),
+      const pile="CZ7"+bno.slice(-4).replace("-","")+String(i+1).padStart(3,"0");
+      const st=!ver?"PENDING":ng.length?(rnd()<.6?"QUARANTINE":"REJECT"):"PASS";
+      M.insp.push({id:"s"+k,cl:2,batchId:bid,batchNo:bno,pileId:pile,pileMethod:rnd()<.85?"scan":"key",product:PRODUCT,model:MODEL,panel:rnd()<.5?"A":"B",
+        results:res,remarks:rem,ngItems:ng,status:st,led:ng.includes("B-1j")?["Green static","Red blinking","Red static"][k%3]:"Green blinking",led2:ng.includes("B-2g")?"Red static":"Green blinking",
+        nameplateId:ng.includes("A-4b")?pile.slice(0,-1)+"9":pile,boxId:pile,cctvId:"{SN:BM10AD0A"+(10000+k)+",DT:DH-IPC-HFW1230S}",cctvPw:"",
+        overall:ng.length?"Unit moved to rework area.":"",reinspect:false,checkedBy:who[0],checkedName:who[1],checkedAt:d.toISOString(),day:ymd(d),checkSignature:sig,
         verified:ver,verifiedBy:ver?"farah":"",verifiedName:ver?"Farah Aziz":"",verifiedAt:ver?new Date(d.getTime()+3*36e5).toISOString():"",verifyComment:"",signature:ver?sig:""})}});
 }
 async function mockApi(action,p){
@@ -280,9 +316,9 @@ async function mockApi(action,p){
     case"data":return ok({user:pub(me),batches:JSON.parse(JSON.stringify(M.batches)),inspections:JSON.parse(JSON.stringify(M.insp)),accounts:me.role==="admin"?Object.values(M.acc).map(a=>({username:a.username,name:a.name,role:a.role,active:a.active})):undefined});
     case"submit":{if(!need(["staff","admin"]))return fail("Your role cannot do this.");const d=p.insp,b=M.batches.find(x=>x.id===d.batchId);if(!b)return fail("Select the incoming batch.");
       const ng=Object.keys(d.results).filter(k=>d.results[k]==="NG");if(ng.some(k=>!(d.remarks[k]||"").trim()))return fail("Every NG item needs a remark.");const t=new Date();
-      const row={...d,id:"n"+Date.now(),batchNo:b.batchNo,ngItems:ng,status:ng.length?"ON HOLD":"PASS",checkedBy:me.username,checkedName:me.name,checkedAt:t.toISOString(),day:ymd(t),verified:false};M.insp.push(row);return ok({id:row.id,status:row.status})}
-    case"verify":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");let n=0,sk=0;const t=new Date().toISOString();
-      M.insp.forEach(i=>{if(!p.ids.includes(i.id))return;if(i.verified||i.checkedBy===me.username){sk++;return}Object.assign(i,{verified:true,verifiedBy:me.username,verifiedName:me.name,verifiedAt:t,signature:p.signature,verifyComment:p.comment||""});n++});return ok({verified:n,skipped:sk})}
+      const row={...d,id:"n"+Date.now(),batchNo:b.batchNo,ngItems:ng,status:"PENDING",checkedBy:me.username,checkedName:me.name,checkedAt:t.toISOString(),day:ymd(t),verified:false};M.insp.push(row);return ok({id:row.id,status:row.status})}
+    case"verify":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");if(!["PASS","QUARANTINE","REJECT"].includes(p.status))return fail("Select the final status.");let n=0,sk=0;const t=new Date().toISOString();
+      M.insp.forEach(i=>{if(!p.ids.includes(i.id))return;if(i.verified||i.checkedBy===me.username||(p.status==="PASS"&&(i.ngItems||[]).length)){sk++;return}Object.assign(i,{verified:true,status:p.status,verifiedBy:me.username,verifiedName:me.name,verifiedAt:t,signature:p.signature,verifyComment:p.comment||""});n++});return ok({verified:n,skipped:sk})}
     case"changePin":if(me.pin!==String(p.oldPin))return fail("Current PIN is not correct.");me.pin=String(p.newPin);return ok({});
     case"createAccount":{if(!need(["admin"]))return fail("Your role cannot do this.");const u=cleanUser(p.username);if(M.acc[u])return fail(`Username ${u} is already taken.`);M.acc[u]={username:u,name:p.name,role:p.role,pin:String(p.pin),active:true};return ok({})}
     case"resetPin":{if(!need(["admin"]))return fail("Your role cannot do this.");const a=M.acc[p.username];if(!a)return fail("Account not found.");a.pin=String(p.pin);return ok({})}
@@ -342,6 +378,7 @@ async function start(){
   TOKEN=(DEMO?"":ls("czqc-token"))||"";
   try{
     const p=await api("ping");
+    S.backendV=DEMO?2:(p.version||1);
     if(!p.setup){S.phase="setup";render();return}
     S.phase="ready";
     if(TOKEN){try{const r=await api("me");setSession(r.user);render();await loadData()}catch(e){render()}}
@@ -385,6 +422,7 @@ function shell(){
   return `<header class="sheet" style="display:flex;flex-direction:column;gap:12px;padding-bottom:0">
     <div class="bar"><div class="brand"><div class="co">C Zero Sdn Bhd · Quality Control</div><h1>AC Charger QC Inspection</h1></div>
     <div class="who"><div style="text-align:right"><div><b>${esc(s.name)}</b></div><div class="small muted mono">${esc(s.username)}</div></div><span class="role">${ROLES[s.role]}</span>${DEMO?'<span class="status demo-tag">DEMO</span>':""}<button class="btn sm" type="button" data-act="refresh" title="Load the latest records">Refresh</button><button class="btn sm" type="button" data-act="tab" data-tab="pin">PIN</button><button class="btn sm" type="button" data-act="logout">Log out</button></div></div>
+    ${S.backendV<2?`<div class="warn"><b>Update needed:</b> the Google Sheet script is an older version, so new inspections cannot be submitted yet. ${s.role==="admin"?"Paste the new Code.gs into Apps Script and deploy a new version.":"Ask the admin to update the system."}</div>`:""}
     <nav class="tabs" role="tablist">${tabs}</nav></header>`;
 }
 function viewHtml(){
@@ -396,6 +434,7 @@ function viewHtml(){
 function afterRender(){
   if(S.tab==="new"&&!S.detail)updateFormUI();
   if($("#pad"))PAD=mountPad($("#pad"));
+  if($("#cpad"))CPAD=mountPad($("#cpad"));
 }
 
 /* ---------- login & setup ---------- */
@@ -423,49 +462,115 @@ function setupView(){
   <div class="err" id="su-err"></div><button class="btn primary" type="submit">Create admin account</button></form>`}
 
 /* ---------- staff: new inspection ---------- */
-function blankForm(){return{batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},cctvId:"",cctvPw:"",led:"",overall:"",reinspect:false}}
-function draftKey(){return"czqc-draft-"+(me()?.username||"")}
-function loadDraft(){let f=null;try{f=JSON.parse(ls(draftKey())||"null")}catch(e){}S.form=Object.assign(blankForm(),f||{})}
-function saveDraft(){ls(draftKey(),JSON.stringify(S.form))}
-function batchOptions(sel){return `<option value="">Select batch…</option>`+S.batches.filter(b=>b.open!==false).map(b=>`<option value="${esc(b.id)}" ${b.id===sel?"selected":""}>${esc(b.batchNo)} · ${b.incomingQty} units · ${dmy(b.receivedDate)}</option>`).join("")}
+
+function blankForm(){return{batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},nameplateId:"",boxId:"",cctvId:"",cctvPw:"",led:"",led2:"",overall:"",reinspect:false}}
 function formView(){
   const f=S.form,s=me();
   const sections=SECTIONS.map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
     sec.groups.map(g=>`<div class="group"><div class="g-h"><h3>${g.n}. ${g.title}</h3></div>`+
-      g.items.map(([c,t])=>{const k=sec.ltr+"-"+c;return `<div class="item" data-key="${k}"><span class="code">${c}</span><span>${esc(t)}</span>
-        <span class="res"><button type="button" class="ok" data-act="res" data-key="${k}" data-v="OK" aria-pressed="false" aria-label="OK: ${esc(t)}" ${k==="B-4a"?"disabled":""}>OK</button><button type="button" class="ng" data-act="res" data-key="${k}" data-v="NG" aria-pressed="false" aria-label="NG: ${esc(t)}" ${k==="B-4a"?"disabled":""}>NG</button></span>
-        <div class="remark">${itemExtra(k,f)}<input type="text" id="rem-${k}" data-rem="${k}" placeholder="Remark" value="${esc(f.rem[k]||"")}"></div></div>`}).join("")+`</div>`).join("")+`</section>`).join("");
+      g.items.map(([c,t,o])=>{const k=sec.ltr+"-"+c,auto=isAuto(o);return `<div class="item" data-key="${k}"><span class="code">${c}</span><span>${esc(t)}${auto?' <span class="autotag">AUTO</span>':""}</span>
+        <span class="res"><button type="button" class="ok" data-act="res" data-key="${k}" data-v="OK" aria-pressed="false" aria-label="OK: ${esc(t)}" ${auto?"disabled":""}>OK</button><button type="button" class="ng" data-act="res" data-key="${k}" data-v="NG" aria-pressed="false" aria-label="NG: ${esc(t)}" ${auto?"disabled":""}>NG</button></span>
+        <div class="remark">${itemExtra(k,o,f)}<input type="text" id="rem-${k}" data-rem="${k}" placeholder="Remark" value="${esc(f.rem[k]||"")}"></div></div>`}).join("")+
+      (g.note?`<div class="warn" style="margin-top:8px"><b>${esc(g.note)}</b></div>`:"")+`</div>`).join("")+`</section>`).join("");
   return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
     <div class="spread"><h2>Smart AC Charger 7kW inspection</h2><span class="small muted mono">${REV}</span></div>
     ${S.batches.length?"":`<div class="warn">No batch has been registered yet. Ask the admin to add the incoming batch first.</div>`}
     <div class="grid2">
-      <div class="field"><label for="f-batch">Incoming batch</label><select id="f-batch" data-f="batchId">${batchOptions(f.batchId)}</select></div>
+      <div class="field"><label for="f-batch">Batch</label><select id="f-batch" data-f="batchId">${batchOptions(f.batchId)}</select></div>
       <div class="field"><label for="f-pilemethod">Charging pile ID</label>
         <select id="f-pilemethod" data-f="pileMethod"><option value="scan" ${f.pileMethod!=="key"?"selected":""}>Scan QR</option><option value="key" ${f.pileMethod==="key"?"selected":""}>Key in</option></select>
-        ${f.pileMethod==="key"?`<input type="text" id="f-pile" class="mono" data-f="pileId" value="${esc(f.pileId)}" placeholder="Key in pile ID" autocapitalize="characters" aria-label="Charging pile ID">`:
-        `<div class="scanbox"><input type="text" class="val-in ${f.pileId?"has":""}" id="f-pile" data-f="pileId" data-scanpaste="pileId" value="${esc(f.pileId)}" placeholder="Paste or scan QR result" autocapitalize="characters" autocomplete="off" aria-label="Charging pile ID">${scanBtns("pileId","Photo")}<span class="scanhelp">${SCAN_HELP}</span></div>`}</div>
+        ${f.pileMethod==="key"?`<input type="text" id="f-pile" class="mono" data-f="pileId" value="${esc(f.pileId)}" placeholder="Key in pile ID" autocapitalize="characters" aria-label="Charging pile ID">`:scanBox("pileId",f)}</div>
       <div class="field"><span class="lbl">Product / model</span><div>${PRODUCT} · <span class="mono">${MODEL}</span></div></div>
-      <div class="field"><span class="lbl">Decorative panel</span><div class="seg" role="group" aria-label="Decorative panel"><button type="button" data-act="panel" data-v="A" aria-pressed="${f.panel==="A"}">PATTERN A</button><button type="button" data-act="panel" data-v="B" aria-pressed="${f.panel==="B"}">PATTERN B</button></div></div>
+      <div class="field"><label for="f-panel">Decorative panel</label><select id="f-panel" data-f="panel"><option value="">Select pattern…</option><option value="A" ${f.panel==="A"?"selected":""}>PATTERN A</option><option value="B" ${f.panel==="B"?"selected":""}>PATTERN B</option></select></div>
+      <div class="field"><span class="lbl">Inspection date &amp; time</span><div class="small muted">Recorded automatically when you submit.</div></div>
+      <div class="field"><span class="lbl">Status</span><div class="small muted">PASS / QUARANTINE / REJECT is set by the verifier.</div></div>
     </div>
     <div id="dup"></div></section>
-  <div class="sheet strip"><span class="status st-pending" id="f-status">PENDING</span>
+  <div class="sheet strip"><span class="status st-pending" id="f-status">IN PROGRESS</span>
     <div class="prog"><div class="pbar"><i id="f-bar"></i></div><div class="counts" id="f-counts"></div></div>
     <button class="btn" type="button" data-act="clearform">Clear form</button></div>
   ${sections}
   <section class="sheet" style="display:flex;flex-direction:column;gap:14px">
     <div class="field"><label for="f-overall">Overall remarks / action for NG items</label><textarea id="f-overall" data-f="overall">${esc(f.overall)}</textarea></div>
-    <div class="signoff"><div class="col"><span class="lbl">Checked by</span><div><b>${esc(s.name)}</b> <span class="small muted mono">(${esc(s.username)})</span></div><div class="small muted">Date and time are recorded when you submit.</div></div>
-      <div class="col"><span class="lbl">Verified by</span><div class="small muted">A verifier signs online after you submit.</div></div></div>
+    <div class="signoff"><div class="col"><span class="lbl">Checked by – sign here</span>
+        <canvas id="cpad" class="pad" aria-label="Checker signature pad"></canvas>
+        <div class="row"><button class="btn sm" type="button" data-act="cpadclear">Clear signature</button></div>
+        <div><b>${esc(s.name)}</b> <span class="small muted mono">(${esc(s.username)})</span></div><div class="small muted">Date and time are recorded when you submit.</div></div>
+      <div class="col"><span class="lbl">Verified by</span><div class="small muted">A verifier reviews, sets the status and signs online after you submit.</div></div></div>
     <div class="err" id="f-err" aria-live="polite"></div>
     <div class="row"><button class="btn primary" type="button" data-act="submit" id="f-submit">Submit &amp; sign as checker</button></div>
   </section>`;
 }
-
-function itemExtra(k,f){
-  if(k==="B-4a")return `<select class="led-sel" id="f-led" data-f="led" aria-label="CCTV LED indicator"><option value="">Select LED status…</option>${LED_OPTS.map(o=>`<option ${f.led===o?"selected":""}>${o}</option>`).join("")}</select>`;
-  if(k==="B-4b")return `<div class="scanbox" style="flex:1 1 100%"><input type="text" class="val-in ${f.cctvId?"has":""}" id="f-cctvId" data-f="cctvId" data-scanpaste="cctvId" value="${esc(f.cctvId)}" placeholder="Paste or scan CCTV QR ID" autocomplete="off" aria-label="CCTV QR ID">${scanBtns("cctvId","Photo")}<span class="scanhelp">${SCAN_HELP}</span></div><input type="text" class="mono" id="f-cctvPw" data-f="cctvPw" placeholder="CCTV password (optional)" value="${esc(f.cctvPw)}">`;
+function scanBox(target,f){return `<div class="scanbox"><input type="text" class="val-in ${f[target]?"has":""}" id="f-${target}" data-f="${target}" data-scanpaste="${target}" value="${esc(f[target])}" placeholder="Scan or paste ${esc(SCAN_LABEL[target]||"ID")}" ${target==="pileId"?'autocapitalize="characters"':""} autocomplete="off" aria-label="${esc(SCAN_LABEL[target]||target)}">${scanBtns(target,"Photo")}<span class="scanhelp" id="hint-${target}">${target==="pileId"?SCAN_HELP:""}</span></div>`}
+function itemExtra(k,o,f){
+  o=o||{};
+  if(o.led)return `<select class="led-sel" id="f-${o.led}" data-f="${o.led}" aria-label="CCTV indication light"><option value="">Select light status…</option>${LED_OPTS.map(x=>`<option ${f[o.led]===x?"selected":""}>${x}</option>`).join("")}</select>`;
+  if(o.scan)return `<div style="flex:1 1 100%">${scanBox(o.scan,f)}</div>`;
   return "";
 }
+function updateFormUI(){
+  const f=S.form;if(!f||!$("#f-status"))return;
+  applyAutos(f);
+  let ok=0,ng=0;
+  document.querySelectorAll(".item[data-key]").forEach(r=>{const k=r.dataset.key,v=f.res[k];
+    r.classList.toggle("is-ok",v==="OK");r.classList.toggle("is-ng",v==="NG");
+    r.classList.toggle("need-rem",v==="NG"&&!(f.rem[k]||"").trim());
+    const ri=r.querySelector("[data-rem]");if(ri){ri.placeholder=v==="NG"?"Remark (required for NG)":"Remark";if(document.activeElement!==ri&&(f.rem[k]||"")!==ri.value)ri.value=f.rem[k]||""}
+    r.querySelector(".ok").setAttribute("aria-pressed",v==="OK");r.querySelector(".ng").setAttribute("aria-pressed",v==="NG");
+    if(v==="OK")ok++;if(v==="NG")ng++});
+  ["nameplateId","boxId"].forEach(t=>{const h=$("#hint-"+t);if(!h)return;const v=f[t];
+    h.innerHTML=!v?"":!f.pileId?"Scan the charging pile ID first to compare.":idsMatch(v,f.pileId)?'<b style="color:var(--ok)">Matches charging pile ID</b>':'<b style="color:var(--ng)">Does not match charging pile ID</b>'});
+  ["pileId","nameplateId","boxId","cctvId"].forEach(t=>{const el=$("#f-"+t);if(el)el.classList.toggle("has",!!(f[t]||"").trim())});
+  const done=ok+ng,t=ITEMS.length;
+  $("#f-bar").style.width=(done/t*100)+"%";
+  $("#f-counts").innerHTML=`<b>${done}</b> / ${t} checked · <b>${ok}</b> OK · <b style="color:var(--ng)">${ng}</b> NG`;
+  const st=$("#f-status");
+  if(ng){st.className="status st-hold";st.textContent="NG FOUND"}else if(done===t){st.className="status st-pass";st.textContent="ALL OK"}else{st.className="status st-pending";st.textContent="IN PROGRESS"}
+  const pid=f.pileId.trim().toUpperCase(),prev=pid?S.insp.filter(i=>(i.pileId||"").toUpperCase()===pid):[];
+  $("#dup").innerHTML=prev.length?`<div class="warn">Pile ID ${esc(pid)} was already inspected on ${dt(prev[0].checkedAt)} (${esc(statusText(prev[0].status))}). <label style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:14px;color:inherit"><input type="checkbox" id="f-reinspect" data-f="reinspect" ${f.reinspect?"checked":""}> This is a re-inspection</label></div>`:"";
+}
+function setScanValue(target,v){
+  v=String(v||"").trim();if(target==="pileId"){v=v.toUpperCase();S.form.reinspect=false}
+  S.form[target]=v;saveDraft();
+  const el=$("#f-"+target);
+  if(el){el.value=v;updateFormUI()}else{$("#view").innerHTML=viewHtml();afterRender()}
+}
+let CPAD=null;
+async function submitForm(){
+  const f=S.form,s=me(),err=$("#f-err");err.textContent="";
+  applyAutos(f);
+  const pid=f.pileId.trim().toUpperCase();
+  const missing=ITEMS.filter(i=>!f.res[i.key]);
+  if(S.backendV<2)return err.textContent="The system is being updated. Ask the admin to update the Google Sheet script, then submit again.";
+  if(!f.batchId)return err.textContent="Select the batch.";
+  if(!pid)return err.textContent=f.pileMethod==="key"?"Key in the charging pile ID.":"Scan the charging pile QR code.";
+  if(!f.panel)return err.textContent="Choose decorative panel Pattern A or B.";
+  if(missing.length){const m=missing[0];return err.textContent=`${missing.length} item(s) not done yet, starting with ${m.code} ${m.text}`+(m.opt.scan?" (scan the ID).":m.opt.led?" (select the light status).":".")}
+  const noRem=ITEMS.filter(i=>f.res[i.key]==="NG"&&!(f.rem[i.key]||"").trim());
+  if(noRem.length){$(`#rem-${noRem[0].key}`)?.focus();return err.textContent=`Write a remark for every NG item. Missing: ${noRem.map(i=>i.code).join(", ")}.`}
+  if(!CPAD||CPAD.isEmpty())return err.textContent="Sign in the Checked by box before submitting.";
+  const dup=S.insp.some(i=>(i.pileId||"").toUpperCase()===pid);
+  if(dup&&!f.reinspect)return err.textContent="This pile ID was inspected before. Tick “This is a re-inspection” to submit again.";
+  const ng=ITEMS.filter(i=>f.res[i.key]==="NG").map(i=>i.key);
+  const b=S.batches.find(x=>x.id===f.batchId);
+  const rem={};Object.keys(f.rem).forEach(k=>{if(ITEM[k]&&f.rem[k]&&f.rem[k].trim())rem[k]=f.rem[k].trim()});
+  const res={};ITEMS.forEach(i=>res[i.key]=f.res[i.key]);
+  const doc={cl:2,batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
+    results:res,remarks:rem,ngItems:ng,status:"PENDING",nameplateId:f.nameplateId.trim(),boxId:f.boxId.trim(),cctvId:f.cctvId.trim(),cctvPw:"",
+    led:f.led,led2:f.led2,pileMethod:f.pileMethod==="key"?"key":"scan",overall:f.overall.trim(),reinspect:!!(dup&&f.reinspect),checkSignature:CPAD.data()};
+  const btn=$("#f-submit");btn.disabled=true;btn.textContent="Saving…";
+  try{await api("submit",{insp:doc});loadData(true);
+    const keep=f.batchId;S.form=blankForm();S.form.batchId=keep;saveDraft();CPAD=null;
+    $("#view").innerHTML=viewHtml();afterRender();window.scrollTo({top:0});toast(`Saved ${pid} · sent to verifier${ng.length?` · ${ng.length} NG`:""}`);
+  }catch(e){err.textContent=dbErr(e);btn.disabled=false;btn.textContent="Submit & sign as checker"}
+}
+
+function draftKey(){return"czqc-draft-"+(me()?.username||"")}
+function loadDraft(){let f=null;try{f=JSON.parse(ls(draftKey())||"null")}catch(e){}S.form=Object.assign(blankForm(),f||{})}
+function saveDraft(){ls(draftKey(),JSON.stringify(S.form))}
+function batchOptions(sel){return `<option value="">Select batch…</option>`+S.batches.filter(b=>b.open!==false).map(b=>`<option value="${esc(b.id)}" ${b.id===sel?"selected":""}>${esc(b.batchNo)} · ${b.incomingQty} units · ${dmy(b.receivedDate)}</option>`).join("")}
+
+
 const SCAN_HELP="Tap Scan to open the camera and point it at the QR or barcode. If the camera does not open, use Photo, paste the code, or use a Bluetooth scanner in this box.";
 function scanBtns(target,label){return `<button type="button" class="btn primary" data-act="livescan" data-target="${target}">Scan</button><label class="btn">${label}<input class="vh" type="file" accept="image/*" capture="environment" data-scan="${target}"></label>`}
 async function handleScan(inp){
@@ -482,19 +587,14 @@ async function applyScanFile(target,file){
   setScanValue(target,v);
   saveDraft();$("#view").innerHTML=viewHtml();afterRender();toast("Scanned: "+v);
 }
-function setScanValue(target,v){
-  v=String(v||"").trim();
-  if(target==="pileId"){S.form.pileId=v.toUpperCase();S.form.reinspect=false}else S.form.cctvId=v;
-  saveDraft();$("#view").innerHTML=viewHtml();afterRender();
-}
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v1.7";
+const APP_VERSION="v2.0";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
   const m=document.createElement("div");m.className="scanmodal";m.id="scanmodal";
-  m.innerHTML=`<div class="t">${target==="pileId"?"Scan charging pile ID":"Scan CCTV QR ID"}</div>
+  m.innerHTML=`<div class="t">Scan ${esc(SCAN_LABEL[target]||"ID")}</div>
     <div id="reader"><video id="scan-video" playsinline muted autoplay></video><div class="aim"></div></div>
     <div class="h" id="scan-hint">Starting camera…</div>
     <div class="row" style="justify-content:center"><button type="button" class="btn primary" data-act="snapscan" id="snap-btn" disabled>Snap</button><button type="button" class="btn" data-act="closescan">Cancel</button></div>
@@ -553,7 +653,7 @@ function scanSuccess(target,txt){
   beep();if(navigator.vibrate)navigator.vibrate(120);
   stopLive();
   const ov=document.createElement("div");ov.className="scanok";ov.setAttribute("role","alertdialog");ov.setAttribute("aria-label","Scan successful");
-  ov.innerHTML=`<div class="box"><div class="ck"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div class="tt">Scan berjaya</div><div class="vv"></div><div style="font-size:13px;color:#5d6b7a">${target==="pileId"?"Charging pile ID":"CCTV QR ID"}</div></div>`;
+  ov.innerHTML=`<div class="box"><div class="ck"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div class="tt">Scan berjaya</div><div class="vv"></div><div style="font-size:13px;color:#5d6b7a">${esc(SCAN_LABEL[target]||"ID")}</div></div>`;
   ov.querySelector(".vv").textContent=v;
   document.body.append(ov);
   setScanValue(target,v);
@@ -610,57 +710,129 @@ async function decodeQR(file){
   }
   return null;
 }
-function updateFormUI(){
-  const f=S.form;if(!f||!$("#f-status"))return;
-  let ok=0,ng=0;
-  document.querySelectorAll(".item[data-key]").forEach(r=>{const v=f.res[r.dataset.key];
-    r.classList.toggle("is-ok",v==="OK");r.classList.toggle("is-ng",v==="NG");
-    r.classList.toggle("need-rem",v==="NG"&&!(f.rem[r.dataset.key]||"").trim());
-    const ri=r.querySelector("[data-rem]");if(ri)ri.placeholder=v==="NG"?"Remark (required for NG)":"Remark";
-    r.querySelector(".ok").setAttribute("aria-pressed",v==="OK");r.querySelector(".ng").setAttribute("aria-pressed",v==="NG");
-    if(v==="OK")ok++;if(v==="NG")ng++});
-  document.querySelectorAll('[data-act="panel"]').forEach(b=>b.setAttribute("aria-pressed",f.panel===b.dataset.v));
-  const done=ok+ng,t=ITEMS.length;
-  $("#f-bar").style.width=(done/t*100)+"%";
-  $("#f-counts").innerHTML=`<b>${done}</b> / ${t} checked · <b>${ok}</b> OK · <b style="color:var(--ng)">${ng}</b> NG`;
-  const st=$("#f-status");
-  if(ng){st.className="status st-hold";st.textContent="ON HOLD"}else if(done===t){st.className="status st-pass";st.textContent="PASS"}else{st.className="status st-pending";st.textContent="PENDING"}
-  const pid=f.pileId.trim().toUpperCase(),prev=pid?S.insp.filter(i=>(i.pileId||"").toUpperCase()===pid):[];
-  $("#dup").innerHTML=prev.length?`<div class="warn">Pile ID ${esc(pid)} was already inspected on ${dt(prev[0].checkedAt)} (${prev[0].status}). <label style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:14px;color:inherit"><input type="checkbox" id="f-reinspect" data-f="reinspect" ${f.reinspect?"checked":""}> This is a re-inspection</label></div>`:"";
-}
-async function submitForm(){
-  const f=S.form,s=me(),err=$("#f-err");err.textContent="";
-  const pid=f.pileId.trim().toUpperCase();
-  const missing=ITEMS.filter(i=>!f.res[i.key]);
-  if(!f.batchId)return err.textContent="Select the incoming batch.";
-  if(!pid)return err.textContent=f.pileMethod==="key"?"Key in the charging pile ID.":"Scan the charging pile QR code.";
-  if(!f.panel)return err.textContent="Choose decorative panel Pattern A or B.";
-  if(missing.length)return err.textContent=`${missing.length} item(s) not checked yet, starting with ${missing[0].code} ${missing[0].text}.`;
-  const noRem=ITEMS.filter(i=>f.res[i.key]==="NG"&&!(f.rem[i.key]||"").trim());
-  if(noRem.length){$(`#rem-${noRem[0].key}`)?.focus();return err.textContent=`Write a remark for every NG item. Missing: ${noRem.map(i=>i.code).join(", ")}.`}
-  if(f.res["B-4b"]&&!f.cctvId.trim())return err.textContent="Scan the CCTV QR ID for item B4b.";
-  const dup=S.insp.some(i=>(i.pileId||"").toUpperCase()===pid);
-  if(dup&&!f.reinspect)return err.textContent="This pile ID was inspected before. Tick “This is a re-inspection” to submit again.";
-  const ng=ITEMS.filter(i=>f.res[i.key]==="NG").map(i=>i.key);
-  const b=S.batches.find(x=>x.id===f.batchId);const now=new Date();
-  const rem={};Object.keys(f.rem).forEach(k=>{if(f.rem[k]&&f.rem[k].trim())rem[k]=f.rem[k].trim()});
-  const doc={batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
-    results:{...f.res},remarks:rem,ngItems:ng,status:ng.length?"ON HOLD":"PASS",cctvId:f.cctvId.trim(),cctvPw:f.cctvPw.trim(),
-    led:f.led,pileMethod:f.pileMethod==="key"?"key":"scan",overall:f.overall.trim(),reinspect:!!(dup&&f.reinspect),checkedBy:s.username,checkedName:s.name,checkedAt:now.toISOString(),day:ymd(now),verified:false};
-  const btn=$("#f-submit");btn.disabled=true;btn.textContent="Saving…";
-  try{const r=await api("submit",{insp:doc});doc.status=r.status;loadData(true);
-    const keep=f.batchId;S.form=blankForm();S.form.batchId=keep;saveDraft();
-    $("#view").innerHTML=viewHtml();afterRender();window.scrollTo({top:0});toast(`Saved ${pid} · ${doc.status}`);$("#f-pile")?.focus();
-  }catch(e){err.textContent=dbErr(e);btn.disabled=false;btn.textContent="Submit & sign as checker"}
-}
+
 
 /* ---------- records ---------- */
-function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="HOLD"&&i.status!=="PASS")||(f.status==="PEND"&&!i.verified)))}
+
+
+function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="QUAR"&&isQuar(i))||(f.status==="REJ"&&i.status==="REJECT")||(f.status==="PEND"&&!i.verified)))}
 function filterBar(withStatus){const f=S.filt;return `<div class="grid4">
   <div class="field"><label for="ft-from">From</label><input type="date" id="ft-from" data-filt="from" value="${f.from}"></div>
   <div class="field"><label for="ft-to">To</label><input type="date" id="ft-to" data-filt="to" value="${f.to}"></div>
   <div class="field"><label for="ft-batch">Batch</label><select id="ft-batch" data-filt="batch"><option value="">All batches</option>${S.batches.map(b=>`<option value="${esc(b.id)}" ${f.batch===b.id?"selected":""}>${esc(b.batchNo)}</option>`).join("")}</select></div>
-  ${withStatus?`<div class="field"><label for="ft-status">Status</label><select id="ft-status" data-filt="status"><option value="">All</option><option value="PASS" ${f.status==="PASS"?"selected":""}>PASS · FG</option><option value="HOLD" ${f.status==="HOLD"?"selected":""}>ON HOLD · Reject</option><option value="PEND" ${f.status==="PEND"?"selected":""}>Not verified</option></select></div>`:`<div></div>`}</div>`}
+  ${withStatus?`<div class="field"><label for="ft-status">Status</label><select id="ft-status" data-filt="status"><option value="">All</option><option value="PASS" ${f.status==="PASS"?"selected":""}>PASS · FG</option><option value="QUAR" ${f.status==="QUAR"?"selected":""}>QUARANTINE</option><option value="REJ" ${f.status==="REJ"?"selected":""}>REJECT</option><option value="PEND" ${f.status==="PEND"?"selected":""}>Awaiting verifier</option></select></div>`:`<div></div>`}</div>`}
+function statusSelect(hasNg){return `<div class="field"><label for="v-status">Final status (set by verifier)</label><select id="v-status"><option value="">Select status…</option><option value="PASS" ${hasNg?"disabled":""}>PASS (FG)${hasNg?" – not allowed, NG found":""}</option><option value="QUARANTINE">QUARANTINE</option><option value="REJECT">REJECT</option></select></div>`}
+function verifyView(){
+  const u=me().username;const list=S.insp.filter(i=>!i.verified);
+  const mineOnly=list.filter(i=>i.checkedBy===u).length;const canV=list.filter(i=>i.checkedBy!==u);
+  [...S.sel].forEach(id=>{if(!canV.some(i=>i.id===id))S.sel.delete(id)});
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    <div class="spread"><h2>Waiting for verification</h2><span class="small muted">${canV.length} inspection(s)</span></div>
+    ${mineOnly?`<div class="small muted">${mineOnly} inspection(s) you checked yourself are hidden. Another verifier must sign them.</div>`:""}
+    ${recTable(canV,{select:true,empty:"Nothing to verify. New inspections appear here as soon as staff submit them."})}</section>
+  ${canV.length?`<section class="sheet" style="display:flex;flex-direction:column;gap:12px">
+    <h3>Set status and sign selected inspections</h3>
+    <p class="small muted" style="margin:0">Open a row to review it first. The status, your signature, name and the current date and time are recorded on every selected inspection. PASS cannot be given to a unit with NG items.</p>
+    ${statusSelect(false)}
+    <canvas id="pad" class="pad" aria-label="Signature pad"></canvas>
+    <div class="field"><label for="v-comment">Verifier comment (optional)</label><input type="text" id="v-comment"></div>
+    <div class="err" id="v-err"></div>
+    <div class="row"><button class="btn" type="button" data-act="padclear">Clear signature</button><button class="btn primary" type="button" data-act="verifysel" id="v-btn">Verify ${S.sel.size} selected</button></div></section>`:""}`}
+async function verify(ids,errEl,btn){
+  errEl.textContent="";
+  if(!ids.length)return errEl.textContent="Select at least one inspection.";
+  const status=$("#v-status")?.value||"";
+  if(!status)return errEl.textContent="Select the final status: PASS, QUARANTINE or REJECT.";
+  if(status==="PASS"){const bad=S.insp.filter(i=>ids.includes(i.id)&&(i.ngItems||[]).length);if(bad.length)return errEl.textContent=`PASS is not allowed for units with NG items (${bad.map(i=>i.pileId).join(", ")}). Choose QUARANTINE or REJECT, or unselect them.`}
+  if(!PAD||PAD.isEmpty())return errEl.textContent="Sign in the box before verifying.";
+  const sig=PAD.data(),comment=($("#v-comment")?.value||"").trim();
+  btn.disabled=true;btn.textContent="Saving…";
+  try{const r=await api("verify",{ids,signature:sig,comment,status});ids.forEach(id=>S.sel.delete(id));
+    toast(`${r.verified} inspection(s) verified as ${status}`+(r.skipped?` · ${r.skipped} skipped`:""));
+    S.detail=null;PAD=null;await loadData(true);$("#view").innerHTML=viewHtml();afterRender();updateBadges()}
+  catch(e){errEl.textContent=dbErr(e);btn.disabled=false;btn.textContent="Try again"}
+}
+function extraFor(i,k,o){
+  o=o||{};const parts=[];
+  if(o.led&&i[o.led])parts.push(`Light: <b>${esc(i[o.led])}</b>`);
+  if(o.scan&&i[o.scan])parts.push(`${esc(SCAN_LABEL[o.scan]||"ID")}: <span class="mono">${esc(i[o.scan])}</span>`);
+  if(o.scan==="cctvId"&&i.cctvPw)parts.push(`PW: <span class="mono">${esc(i.cctvPw)}</span>`);
+  return parts.join(" · ");
+}
+function detailView(){
+  const i=S.insp.find(x=>x.id===S.detail);if(!i){S.detail=null;return viewHtml()}
+  const s=me(),canVerify=!i.verified&&(s.role==="verifier"||s.role==="admin")&&i.checkedBy!==s.username,hasNg=(i.ngItems||[]).length>0;
+  const rows=secFor(i).map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
+    sec.groups.map(g=>`<div class="group"><div class="g-h"><h3>${g.n}. ${g.title}</h3></div>`+g.items.map(([c,t,o])=>{const k=sec.ltr+"-"+c,v=i.results?.[k];
+      const ex=extraFor(i,k,o),rm=esc(i.remarks?.[k]||"");
+      return `<div class="item ${v==="OK"?"is-ok":v==="NG"?"is-ng":""}"><span class="code">${c}</span><span>${esc(t)}</span><span class="rbadge ${v==="OK"?"ok":v==="NG"?"ng":"none"}">${v||"–"}</span>${ex||rm?`<div class="remark"><span class="ro">${ex}${ex&&rm?" · ":""}${rm}</span></div>`:""}</div>`}).join("")+`</div>`).join("")+`</section>`).join("");
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    <div class="spread"><button class="btn sm" type="button" data-act="back">← Back</button><div class="row"><button class="btn sm" type="button" data-act="pdf" data-id="${esc(i.id)}">Download PDF</button></div></div>
+    <div class="readonly"><span class="status st-pending">VIEW ONLY</span> Inspection results cannot be changed after the checker submits${canVerify?". You can only set the status and sign below.":"."}</div>
+    <div class="spread"><h2 class="mono" style="font-family:var(--f-mono);font-size:20px">${esc(i.pileId)} <span class="small muted" style="font-family:var(--f-body)">${i.pileMethod==="key"?"keyed in":i.pileMethod==="scan"?"scanned":""}</span></h2><div class="row">${statusPill(i)}${verPill(i)}</div></div>
+    <div class="grid4">
+      <div class="field"><span class="lbl">Batch</span><div>${esc(i.batchNo)}</div></div>
+      <div class="field"><span class="lbl">Model</span><div class="mono">${esc(i.model)}</div></div>
+      <div class="field"><span class="lbl">Decorative panel</span><div>Pattern ${esc(i.panel)}</div></div>
+      <div class="field"><span class="lbl">Inspection date &amp; time</span><div>${dt(i.checkedAt)}</div></div></div>
+    ${hasNg?`<div class="warn">${(i.ngItems||[]).length} NG item(s): ${(i.ngItems||[]).map(k=>esc((itemOf(i,k)||{code:k}).code)).join(", ")}</div>`:`<div class="small" style="color:var(--ok)"><b>All items OK.</b></div>`}
+    ${i.reinspect?`<div class="small muted">Re-inspection of a previously checked unit.</div>`:""}</section>
+  ${rows}
+  <section class="sheet" style="display:flex;flex-direction:column;gap:14px">
+    ${i.overall?`<div class="field"><span class="lbl">Overall remarks</span><div>${esc(i.overall)}</div></div>`:""}
+    <div class="signoff"><div class="col"><span class="lbl">Checked by</span>${i.checkSignature?`<img class="sigimg" src="${esc(i.checkSignature)}" alt="Signature of ${esc(i.checkedName)}">`:""}<div><b>${esc(i.checkedName)}</b> <span class="small muted mono">(${esc(i.checkedBy)})</span></div><div class="small muted">${dt(i.checkedAt)}</div></div>
+    <div class="col"><span class="lbl">Verified by</span>${i.verified?`<img class="sigimg" src="${esc(i.signature)}" alt="Signature of ${esc(i.verifiedName)}"><div><b>${esc(i.verifiedName)}</b> <span class="small muted mono">(${esc(i.verifiedBy)})</span></div><div class="small muted">${dt(i.verifiedAt)}</div><div class="small">Status: <b>${esc(statusText(i.status))}</b></div>${i.verifyComment?`<div class="small">${esc(i.verifyComment)}</div>`:""}`:`<div class="small muted">${i.checkedBy===s.username&&s.role!=="staff"?"You checked this unit, so another verifier must sign it.":"Not verified yet."}</div>`}</div></div></section>
+  ${canVerify?`<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><h3>Set status and verify</h3>
+    ${statusSelect(hasNg)}
+    <canvas id="pad" class="pad" aria-label="Signature pad"></canvas>
+    <div class="field"><label for="v-comment">Verifier comment (optional)</label><input type="text" id="v-comment"></div>
+    <div class="err" id="v-err"></div>
+    <div class="row"><button class="btn" type="button" data-act="padclear">Clear signature</button><button class="btn primary" type="button" data-act="verifyone" data-id="${esc(i.id)}" id="v-btn">Sign &amp; verify</button></div></section>`:""}`}
+
+
+/* ---------- dashboard ---------- */
+
+function dashView(){
+  const list=applyFilt(S.insp,false);
+  const pass=list.filter(i=>i.status==="PASS").length,quar=list.filter(isQuar).length,rej=list.filter(i=>i.status==="REJECT").length,pend=list.filter(i=>!i.verified).length;
+  const bIds=S.filt.batch?[S.filt.batch]:[...new Set(list.map(i=>i.batchId))];
+  const bmap=Object.fromEntries(S.batches.map(b=>[b.id,b]));
+  const incoming=bIds.reduce((a,id)=>a+(+bmap[id]?.incomingQty||0),0);
+  const byBatch=bIds.map(id=>{const b=bmap[id]||{batchNo:"(deleted batch)",incomingQty:0};const all=S.insp.filter(i=>i.batchId===id);
+    return{b,checked:all.length,pass:all.filter(i=>i.status==="PASS").length,quar:all.filter(isQuar).length,rej:all.filter(i=>i.status==="REJECT").length,pend:all.filter(i=>!i.verified).length}}).sort((x,y)=>(y.b.receivedDate||"").localeCompare(x.b.receivedDate||""));
+  const dayMap={};list.forEach(i=>{const d=dayMap[i.day]||(dayMap[i.day]={pass:0,quar:0,rej:0,pend:0});if(!i.verified)d.pend++;else if(i.status==="PASS")d.pass++;else if(i.status==="REJECT")d.rej++;else d.quar++});
+  let days=Object.keys(dayMap).sort();
+  if(S.filt.from&&S.filt.to){const a=new Date(S.filt.from),b=new Date(S.filt.to),n=(b-a)/864e5;if(n>=0&&n<=62){days=[];for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1))days.push(ymd(d))}}
+  const withNg=list.filter(i=>(i.ngItems||[]).length);
+  const typ={},grp={};withNg.forEach(i=>(i.ngItems||[]).forEach(k=>{const it=itemOf(i,k)||{code:k,text:k,group:k};const lab=it.code+"|"+it.text;typ[lab]=(typ[lab]||0)+1;grp[it.group]=(grp[it.group]||0)+1}));
+  const types=Object.entries(typ).sort((a,b)=>b[1]-a[1]);const tmax=types[0]?.[1]||1;
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><div class="spread"><h2>QC dashboard</h2><button class="btn sm" type="button" data-act="csv">Export CSV</button></div>${filterBar(false)}</section>
+  <div class="kpis">
+    <div class="kpi"><span class="lbl">Total checked</span><span class="v">${list.length}</span><span class="s">${incoming?`of ${incoming} incoming units`:"no incoming quantity"}</span></div>
+    <div class="kpi ok"><span class="lbl">Total FG (pass)</span><span class="v">${pass}</span><span class="s">${pct(pass,list.length)} of checked</span></div>
+    <div class="kpi hold"><span class="lbl">Quarantine</span><span class="v">${quar}</span><span class="s">${pct(quar,list.length)} of checked</span></div>
+    <div class="kpi ng"><span class="lbl">Total reject</span><span class="v">${rej}</span><span class="s">${pct(rej,list.length)} of checked</span></div>
+    <div class="kpi ng"><span class="lbl">Reject rate</span><span class="v">${pct(rej,incoming)}</span><span class="s">of total incoming batch</span></div>
+    <div class="kpi"><span class="lbl">Awaiting verifier</span><span class="v">${pend}</span><span class="s">status not set yet</span></div>
+  </div>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><div class="spread"><h3>Checked by day</h3><div class="legend"><span><i style="background:var(--ok)"></i>FG</span><span><i style="background:var(--hold)"></i>Quarantine</span><span><i style="background:var(--ng)"></i>Reject</span><span><i style="background:var(--line)"></i>Awaiting</span></div></div>${dayChart(days,dayMap)}</section>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>By batch</h3><p class="small muted" style="margin:0">Batch totals cover every inspection in the batch, whatever the date filter.</p>
+   ${byBatch.length?`<div class="tbl-wrap"><table><thead><tr><th>Batch</th><th>Received</th><th class="num">Incoming</th><th class="num">Checked</th><th class="num">Progress</th><th class="num">FG</th><th class="num">Quarantine</th><th class="num">Reject</th><th class="num">Awaiting</th><th class="num">Reject % incoming</th><th class="num">Reject % checked</th></tr></thead><tbody>${byBatch.map(r=>`<tr><td><b>${esc(r.b.batchNo)}</b></td><td>${dmy(r.b.receivedDate)}</td><td class="num">${r.b.incomingQty||0}</td><td class="num">${r.checked}</td><td class="num">${pct(r.checked,+r.b.incomingQty)}</td><td class="num" style="color:var(--ok)">${r.pass}</td><td class="num" style="color:var(--hold)">${r.quar}</td><td class="num" style="color:var(--ng)">${r.rej}</td><td class="num">${r.pend}</td><td class="num"><b>${pct(r.rej,+r.b.incomingQty)}</b></td><td class="num">${pct(r.rej,r.checked)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No batch has inspections in this date range.</div>`}</section>
+  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>Type of reject (NG items)</h3>
+   ${types.length?`<p class="small muted" style="margin:0">One unit can fail more than one item. Share is of all ${withNg.length} unit(s) with NG.</p>${types.map(([lab,n])=>{const [code,text]=lab.split("|");return `<div class="hbar"><span><span class="code">${esc(code)}</span> ${esc(text)}</span><span class="track"><i style="width:${n/tmax*100}%"></i></span><span class="num" style="text-align:right"><b>${n}</b> · ${pct(n,withNg.length)}</span></div>`}).join("")}
+   <div class="small muted" style="margin-top:6px">By area: ${Object.entries(grp).sort((a,b)=>b[1]-a[1]).map(([g,n])=>`${esc(g)} <b>${n}</b>`).join(" · ")}</div>`:`<div class="empty">No NG items in this range.</div>`}</section>`}
+function dayChart(days,map){
+  if(!days.length)return `<div class="empty">No inspections in this date range.</div>`;
+  const W=900,H=220,pl=34,pb=26,pt=10,cw=(W-pl-8)/days.length,tot=d=>{const m=map[d]||{};return (m.pass||0)+(m.quar||0)+(m.rej||0)+(m.pend||0)},max=Math.max(1,...days.map(tot));
+  const nice=max<=5?max:Math.ceil(max/5)*5,y=v=>H-pb-(v/nice)*(H-pb-pt);
+  const ticks=[0,nice/2,nice].map(v=>Math.round(v)),every=Math.ceil(days.length/12);
+  let g=ticks.map(v=>`<line x1="${pl}" x2="${W-8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}</text>`).join("");
+  const parts=[["pass","var(--ok)","FG"],["quar","var(--hold)","quarantine"],["rej","var(--ng)","reject"],["pend","var(--line)","awaiting"]];
+  days.forEach((d,ix)=>{const m=map[d]||{},x=pl+ix*cw+cw*.15,w=Math.max(2,cw*.7);let acc=0;
+    parts.forEach(([k,col,lab])=>{const v=m[k]||0;if(!v)return;g+=`<rect x="${x}" y="${y(acc+v)}" width="${w}" height="${y(acc)-y(acc+v)}" fill="${col}"><title>${dmy(d)}: ${v} ${lab}</title></rect>`;acc+=v});
+    if(ix%every===0)g+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.slice(8)}/${d.slice(5,7)}</text>`});
+  return `<div class="tbl-wrap"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto" role="img" aria-label="Inspections per day">${g}</svg></div>`}
+
 function recTable(list,opts={}){
   if(!list.length)return `<div class="empty">${opts.empty||"No inspections match these filters."}</div>`;
   return `<div class="tbl-wrap"><table><thead><tr>${opts.select?'<th><input type="checkbox" data-act="selall" aria-label="Select all"></th>':""}<th>Checked</th><th>Pile ID</th><th>Batch</th><th>Result</th><th>NG</th><th>Checked by</th><th>Verification</th><th></th></tr></thead><tbody>`+
@@ -672,21 +844,7 @@ function recordsView(mine){
 
 /* ---------- verify ---------- */
 let PAD=null;
-function verifyView(){
-  const u=me().username;const list=S.insp.filter(i=>!i.verified);
-  const mineOnly=list.filter(i=>i.checkedBy===u).length;const canV=list.filter(i=>i.checkedBy!==u);
-  [...S.sel].forEach(id=>{if(!canV.some(i=>i.id===id))S.sel.delete(id)});
-  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
-    <div class="spread"><h2>Waiting for verification</h2><span class="small muted">${canV.length} inspection(s)</span></div>
-    ${mineOnly?`<div class="small muted">${mineOnly} inspection(s) you checked yourself are hidden. Another verifier must sign them.</div>`:""}
-    ${recTable(canV,{select:true,empty:"Nothing to verify. New inspections appear here as soon as staff submit them."})}</section>
-  ${canV.length?`<section class="sheet" style="display:flex;flex-direction:column;gap:12px">
-    <h3>Sign to verify selected inspections</h3>
-    <p class="small muted" style="margin:0">Open a row to review it first. Your signature, name and the current date and time are recorded on every selected inspection.</p>
-    <canvas id="pad" class="pad" aria-label="Signature pad"></canvas>
-    <div class="field"><label for="v-comment">Verifier comment (optional)</label><input type="text" id="v-comment"></div>
-    <div class="err" id="v-err"></div>
-    <div class="row"><button class="btn" type="button" data-act="padclear">Clear signature</button><button class="btn primary" type="button" data-act="verifysel" id="v-btn">Verify ${S.sel.size} selected</button></div></section>`:""}`}
+
 function mountPad(cv){
   const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;
   const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);ctx.lineWidth=2.2;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#0c1f3a";
@@ -698,90 +856,11 @@ function mountPad(cv){
   return{isEmpty:()=>empty,clear:()=>{ctx.clearRect(0,0,cv.width,cv.height);empty=true},
     data:()=>{const o=document.createElement("canvas");o.width=360;o.height=120;const c=o.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,360,120);c.drawImage(cv,0,0,360,120);return o.toDataURL("image/jpeg",.7)}};
 }
-async function verify(ids,errEl,btn){
-  errEl.textContent="";
-  if(!ids.length)return errEl.textContent="Select at least one inspection.";
-  if(!PAD||PAD.isEmpty())return errEl.textContent="Sign in the box before verifying.";
-  const sig=PAD.data(),comment=($("#v-comment")?.value||"").trim();
-  btn.disabled=true;btn.textContent="Saving signature…";
-  try{const r=await api("verify",{ids,signature:sig,comment});ids.forEach(id=>S.sel.delete(id));
-    toast(`${r.verified} inspection(s) verified`+(r.skipped?` · ${r.skipped} skipped`:""));
-    S.detail=null;PAD=null;await loadData(true);$("#view").innerHTML=viewHtml();afterRender();updateBadges()}
-  catch(e){errEl.textContent=dbErr(e);btn.disabled=false;btn.textContent="Try again"}
-}
 
 /* ---------- detail ---------- */
-function detailView(){
-  const i=S.insp.find(x=>x.id===S.detail);if(!i){S.detail=null;return viewHtml()}
-  const s=me(),canVerify=!i.verified&&(s.role==="verifier"||s.role==="admin")&&i.checkedBy!==s.username;
-  const rows=SECTIONS.map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
-    sec.groups.map(g=>`<div class="group"><div class="g-h"><h3>${g.n}. ${g.title}</h3></div>`+g.items.map(([c,t])=>{const k=sec.ltr+"-"+c,v=i.results?.[k];
-      const extra=k==="B-4b"&&(i.cctvId||i.cctvPw)?`QR ID: <span class="mono">${esc(i.cctvId)}</span>${i.cctvPw?` · PW: <span class="mono">${esc(i.cctvPw)}</span>`:""} · `:k==="B-4a"&&i.led?`LED: <b>${esc(i.led)}</b> · `:"";
-      return `<div class="item ${v==="OK"?"is-ok":v==="NG"?"is-ng":""}"><span class="code">${c}</span><span>${esc(t)}</span><span class="rbadge ${v==="OK"?"ok":v==="NG"?"ng":"none"}">${v||"–"}</span>${extra||i.remarks?.[k]?`<div class="remark"><span class="ro">${extra}${esc(i.remarks?.[k]||"")}</span></div>`:""}</div>`}).join("")+`</div>`).join("")+`</section>`).join("");
-  return `<section class="sheet" style="display:flex;flex-direction:column;gap:14px">
-    <div class="spread"><button class="btn sm" type="button" data-act="back">← Back</button><div class="row"><button class="btn sm" type="button" data-act="pdf" data-id="${esc(i.id)}">Download PDF</button></div></div>
-    <div class="readonly"><span class="status st-pending">VIEW ONLY</span> Inspection results cannot be changed after the checker submits${canVerify?". You can only add your verification signature below.":"."}</div>
-    <div class="spread"><h2 class="mono" style="font-family:var(--f-mono);font-size:20px">${esc(i.pileId)} <span class="small muted" style="font-family:var(--f-body)">${i.pileMethod==="key"?"keyed in":i.pileMethod==="scan"?"scanned":""}</span></h2><div class="row">${statusPill(i)}${verPill(i)}</div></div>
-    <div class="grid4">
-      <div class="field"><span class="lbl">Batch</span><div>${esc(i.batchNo)}</div></div>
-      <div class="field"><span class="lbl">Model</span><div class="mono">${esc(i.model)}</div></div>
-      <div class="field"><span class="lbl">Decorative panel</span><div>Pattern ${esc(i.panel)}</div></div>
-      <div class="field"><span class="lbl">Inspection date</span><div>${dmy(i.day)}</div></div></div>
-    ${i.reinspect?`<div class="small muted">Re-inspection of a previously checked unit.</div>`:""}</section>
-  ${rows}
-  <section class="sheet" style="display:flex;flex-direction:column;gap:14px">
-    ${i.overall?`<div class="field"><span class="lbl">Overall remarks</span><div>${esc(i.overall)}</div></div>`:""}
-    <div class="signoff"><div class="col"><span class="lbl">Checked by</span><div><b>${esc(i.checkedName)}</b> <span class="small muted mono">(${esc(i.checkedBy)})</span></div><div class="small muted">${dt(i.checkedAt)}</div></div>
-    <div class="col"><span class="lbl">Verified by</span>${i.verified?`<img class="sigimg" src="${esc(i.signature)}" alt="Signature of ${esc(i.verifiedName)}"><div><b>${esc(i.verifiedName)}</b> <span class="small muted mono">(${esc(i.verifiedBy)})</span></div><div class="small muted">${dt(i.verifiedAt)}</div>${i.verifyComment?`<div class="small">${esc(i.verifyComment)}</div>`:""}`:`<div class="small muted">${i.checkedBy===s.username&&s.role!=="staff"?"You checked this unit, so another verifier must sign it.":"Not verified yet."}</div>`}</div></div></section>
-  ${canVerify?`<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><h3>Verify this inspection</h3>
-    <canvas id="pad" class="pad" aria-label="Signature pad"></canvas>
-    <div class="field"><label for="v-comment">Verifier comment (optional)</label><input type="text" id="v-comment"></div>
-    <div class="err" id="v-err"></div>
-    <div class="row"><button class="btn" type="button" data-act="padclear">Clear signature</button><button class="btn primary" type="button" data-act="verifyone" data-id="${esc(i.id)}" id="v-btn">Sign &amp; verify</button></div></section>`:""}`}
 
 /* ---------- dashboard ---------- */
-function dashView(){
-  const list=applyFilt(S.insp,false);
-  const fg=list.filter(i=>i.status==="PASS").length,rej=list.length-fg,pend=list.filter(i=>!i.verified).length;
-  const bIds=S.filt.batch?[S.filt.batch]:[...new Set(list.map(i=>i.batchId))];
-  const bmap=Object.fromEntries(S.batches.map(b=>[b.id,b]));
-  const incoming=bIds.reduce((a,id)=>a+(+bmap[id]?.incomingQty||0),0);
-  // by batch (all-time counts for the batch, so incoming % is meaningful)
-  const byBatch=bIds.map(id=>{const b=bmap[id]||{batchNo:"(deleted batch)",incomingQty:0};const all=S.insp.filter(i=>i.batchId===id);const r=all.filter(i=>i.status!=="PASS").length;return{b,checked:all.length,fg:all.length-r,rej:r}}).sort((x,y)=>(y.b.receivedDate||"").localeCompare(x.b.receivedDate||""));
-  // by day
-  const dayMap={};list.forEach(i=>{const d=dayMap[i.day]||(dayMap[i.day]={fg:0,rej:0});i.status==="PASS"?d.fg++:d.rej++});
-  let days=Object.keys(dayMap).sort();
-  if(S.filt.from&&S.filt.to){const a=new Date(S.filt.from),b=new Date(S.filt.to),n=(b-a)/864e5;if(n>=0&&n<=62){days=[];for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1))days.push(ymd(d))}}
-  // reject types
-  const typ={};list.filter(i=>i.status!=="PASS").forEach(i=>(i.ngItems||[]).forEach(k=>typ[k]=(typ[k]||0)+1));
-  const types=Object.entries(typ).sort((a,b)=>b[1]-a[1]);const tmax=types[0]?.[1]||1;
-  const grp={};types.forEach(([k,n])=>{const g=ITEM[k]?.group||k;grp[g]=(grp[g]||0)+n});
-  return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><div class="spread"><h2>QC dashboard</h2><button class="btn sm" type="button" data-act="csv">Export CSV</button></div>${filterBar(false)}</section>
-  <div class="kpis">
-    <div class="kpi"><span class="lbl">Total checked</span><span class="v">${list.length}</span><span class="s">${incoming?`of ${incoming} incoming units`:"no incoming quantity"}</span></div>
-    <div class="kpi ok"><span class="lbl">Total FG (pass)</span><span class="v">${fg}</span><span class="s">${pct(fg,list.length)} of checked</span></div>
-    <div class="kpi ng"><span class="lbl">Total reject</span><span class="v">${rej}</span><span class="s">On hold units</span></div>
-    <div class="kpi ng"><span class="lbl">Reject rate</span><span class="v">${pct(rej,incoming)}</span><span class="s">of incoming · ${pct(rej,list.length)} of checked</span></div>
-    <div class="kpi"><span class="lbl">Not verified</span><span class="v">${pend}</span><span class="s">awaiting verifier sign</span></div>
-  </div>
-  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><div class="spread"><h3>Checked by day</h3><div class="legend"><span><i style="background:var(--ok)"></i>FG</span><span><i style="background:var(--ng)"></i>Reject</span></div></div>${dayChart(days,dayMap)}</section>
-  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>By batch</h3><p class="small muted" style="margin:0">Batch totals cover every inspection in the batch, whatever the date filter.</p>
-   ${byBatch.length?`<div class="tbl-wrap"><table><thead><tr><th>Batch</th><th>Received</th><th class="num">Incoming</th><th class="num">Checked</th><th class="num">Progress</th><th class="num">FG</th><th class="num">Reject</th><th class="num">Reject % incoming</th><th class="num">Reject % checked</th></tr></thead><tbody>${byBatch.map(r=>`<tr><td><b>${esc(r.b.batchNo)}</b></td><td>${dmy(r.b.receivedDate)}</td><td class="num">${r.b.incomingQty||0}</td><td class="num">${r.checked}</td><td class="num">${pct(r.checked,+r.b.incomingQty)}</td><td class="num" style="color:var(--ok)">${r.fg}</td><td class="num" style="color:var(--ng)">${r.rej}</td><td class="num"><b>${pct(r.rej,+r.b.incomingQty)}</b></td><td class="num">${pct(r.rej,r.checked)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No batch has inspections in this date range.</div>`}</section>
-  <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>Type of reject</h3>
-   ${types.length?`<p class="small muted" style="margin:0">One unit can fail more than one item. Share is of all ${rej} rejected unit(s).</p>${types.map(([k,n])=>`<div class="hbar"><span><span class="code">${ITEM[k]?.code||k}</span> ${esc(ITEM[k]?.text||k)}</span><span class="track"><i style="width:${n/tmax*100}%"></i></span><span class="num" style="text-align:right"><b>${n}</b> · ${pct(n,rej)}</span></div>`).join("")}
-   <div class="small muted" style="margin-top:6px">By area: ${Object.entries(grp).sort((a,b)=>b[1]-a[1]).map(([g,n])=>`${esc(g)} <b>${n}</b>`).join(" · ")}</div>`:`<div class="empty">No rejects in this range.</div>`}</section>`}
-function dayChart(days,map){
-  if(!days.length)return `<div class="empty">No inspections in this date range.</div>`;
-  const W=900,H=220,pl=34,pb=26,pt=10,cw=(W-pl-8)/days.length,max=Math.max(1,...days.map(d=>(map[d]?.fg||0)+(map[d]?.rej||0)));
-  const nice=max<=5?max:Math.ceil(max/5)*5,y=v=>H-pb-(v/nice)*(H-pb-pt);
-  const ticks=[0,nice/2,nice].map(v=>Math.round(v));
-  const every=Math.ceil(days.length/12);
-  let g=ticks.map(v=>`<line x1="${pl}" x2="${W-8}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}</text>`).join("");
-  days.forEach((d,ix)=>{const m=map[d]||{fg:0,rej:0},x=pl+ix*cw+cw*.15,w=Math.max(2,cw*.7);
-    if(m.fg)g+=`<rect x="${x}" y="${y(m.fg)}" width="${w}" height="${y(0)-y(m.fg)}" fill="var(--ok)"><title>${dmy(d)}: ${m.fg} FG</title></rect>`;
-    if(m.rej)g+=`<rect x="${x}" y="${y(m.fg+m.rej)}" width="${w}" height="${y(m.fg)-y(m.fg+m.rej)}" fill="var(--ng)"><title>${dmy(d)}: ${m.rej} reject</title></rect>`;
-    if(ix%every===0)g+=`<text x="${x+w/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.slice(8)}/${d.slice(5,7)}</text>`});
-  return `<div class="tbl-wrap"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto" role="img" aria-label="Inspections per day">${g}</svg></div>`}
+
 
 /* ---------- batches ---------- */
 function batchesView(){
@@ -813,6 +892,8 @@ function accountsView(){
    <div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`}
 
 /* ---------- PDF & CSV ---------- */
+
+
 async function makePdf(i){
   if(!window.jspdf){toast("The PDF tool did not load. Reload the page and try again.");return}
   const {jsPDF}=window.jspdf,d=new jsPDF({unit:"mm",format:"a4"});const L=14,R=196;let y=14;
@@ -823,43 +904,50 @@ async function makePdf(i){
   d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(93,107,122);d.text("C ZERO SDN BHD · QUALITY CONTROL",TX,13);d.setFont("helvetica","normal");d.text(REV,R,13,{align:"right"});
   d.setTextColor(20);d.setFont("helvetica","bold");d.setFontSize(16);d.text("AC CHARGER INSPECTION REPORT",TX,21);
   y=Math.max(30,8+LH+6);
-  d.setFontSize(9);const meta=[["Product",i.product],["Model",i.model],["Charging pile ID",i.pileId],["Batch",i.batchNo],["Decorative panel","Pattern "+i.panel],["Inspection date",dmy(i.day)],["Status",i.status+(i.status==="PASS"?" (FG)":" (REJECT)")],["Verification",i.verified?"Verified":"Pending"]];
-  meta.forEach((m,ix)=>{const x=ix%2?105:L;if(ix%2===0&&ix)y+=6;d.setFont("helvetica","bold");d.setTextColor(93,107,122);d.text(m[0].toUpperCase(),x,y);d.setFont("helvetica","normal");d.setTextColor(20);d.text(String(m[1]||"-"),x+38,y)});
+  const ct=i.checkedAt?new Date(i.checkedAt):null,hhmm=ct?String(ct.getHours()).padStart(2,"0")+":"+String(ct.getMinutes()).padStart(2,"0"):"-";
+  d.setFontSize(9);const meta=[["Product",i.product],["Model",i.model],["Charging pile ID",i.pileId],["Batch",i.batchNo],["Decorative panel","Pattern "+i.panel],["Inspection date",dmy(i.day)+"   Time: "+hhmm],["Status",statusText(i.status)],["Verification",i.verified?"Verified":"Pending"]];
+  meta.forEach((m,ix)=>{const x=ix%2?105:L;if(ix%2===0&&ix)y+=6;d.setFont("helvetica","bold");d.setTextColor(93,107,122);d.text(m[0].toUpperCase(),x,y);d.setFont("helvetica","normal");
+    if(m[0]==="Status"){if(i.status==="PASS")d.setTextColor(31,122,74);else if(i.status==="REJECT")d.setTextColor(179,38,30);else if(i.status==="QUARANTINE"||i.status==="ON HOLD")d.setTextColor(163,90,0);else d.setTextColor(93,107,122);d.setFont("helvetica","bold")}else d.setTextColor(20);
+    d.text(String(m[1]||"-"),x+38,y)});
   y+=5;
   const head=()=>{d.setFillColor(29,79,145);d.rect(L,y,R-L,6,"F");d.setTextColor(255);d.setFont("helvetica","bold");d.setFontSize(8);d.text("NO",L+2,y+4.2);d.text("ITEM",L+14,y+4.2);d.text("RESULT",128,y+4.2);d.text("REMARK",146,y+4.2);y+=6;d.setTextColor(20)};
   head();
-  SECTIONS.forEach(sec=>{brk(6);d.setFillColor(223,231,241);d.rect(L,y,R-L,6,"F");d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(sec.ltr+".  "+sec.title,L+2,y+4.2);y+=6;d.setTextColor(20);
+  secFor(i).forEach(sec=>{brk(6);d.setFillColor(223,231,241);d.rect(L,y,R-L,6,"F");d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(sec.ltr+".  "+sec.title,L+2,y+4.2);y+=6;d.setTextColor(20);
     sec.groups.forEach(g=>{brk(5.5);d.setFont("helvetica","bold");d.setFontSize(8.5);d.text(g.n+". "+g.title,L+14,y+3.9);y+=5.5;line(y);
-      g.items.forEach(([c,t])=>{const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";
+      g.items.forEach(([c,t,o])=>{o=o||{};const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";
         let rm=i.remarks?.[k]||"",full="";
-        if(k==="B-4a"&&i.led)rm="LED: "+i.led+(rm?" · "+rm:"");
-        if(k==="B-4b"&&(i.cctvId||i.cctvPw)){const sn=(String(i.cctvId||"").match(/SN\s*[:=]\s*([A-Za-z0-9-]+)/)||[])[1];
-          full="CCTV QR ID: "+(i.cctvId||"-")+(i.cctvPw?"    PW: "+i.cctvPw:"");rm=(sn?"SN: "+sn:"")+(rm?(sn?" · ":"")+rm:"");}
+        if(o.led&&i[o.led])rm="Light: "+i[o.led]+(rm?" · "+rm:"");
+        if(o.scan&&(i[o.scan]||(o.scan==="cctvId"&&i.cctvPw))){const val=String(i[o.scan]||"-"),lab=SCAN_LABEL[o.scan]||"ID";
+          const sn=o.scan==="cctvId"?(val.match(/SN\s*[:=]\s*([A-Za-z0-9-]+)/)||[])[1]:null;
+          if(val.length>28||sn||(o.scan==="cctvId"&&i.cctvPw)){full=lab+": "+val+(o.scan==="cctvId"&&i.cctvPw?"    PW: "+i.cctvPw:"");rm=(sn?"SN: "+sn:"")+(rm?(sn?" · ":"")+rm:"")}
+          else rm="ID: "+val+(rm?" · "+rm:"")}
         d.setFont("helvetica","normal");d.setFontSize(7.5);
         const rl=rm?d.splitTextToSize(rm,R-147):[],fl=full?d.splitTextToSize(full,R-L-20):[];
         const top=Math.max(5.5,rl.length*3.2+2.4),h=top+(fl.length?fl.length*3.2+1.6:0);
         brk(h);
-        d.setFontSize(8.5);d.setTextColor(93,107,122);d.text(c,L+2,y+3.9);d.setTextColor(20);d.text(t,L+18,y+3.9);
+        d.setFontSize(8.5);d.setTextColor(93,107,122);d.text(c,L+2,y+3.9);d.setTextColor(20);d.text(d.splitTextToSize(t,108)[0],L+18,y+3.9);
         d.setFont("helvetica","bold");if(v==="NG")d.setTextColor(179,38,30);else d.setTextColor(31,122,74);d.text(v,131,y+3.9);d.setTextColor(20);d.setFont("helvetica","normal");
         d.setFontSize(7.5);rl.forEach((ln,ix)=>d.text(ln,146,y+3.9+ix*3.2));
         if(fl.length){d.setTextColor(70,80,92);fl.forEach((ln,ix)=>d.text(ln,L+18,y+top+2.2+ix*3.2));d.setTextColor(20)}
-        y+=h;line(y,225)})})});
+        y+=h;line(y,225)});
+      if(g.note){brk(6);d.setFont("helvetica","bolditalic");d.setFontSize(7.5);d.setTextColor(163,90,0);d.text("* "+g.note,L+18,y+4);d.setTextColor(20);y+=6}})});
   if(i.overall){y+=4;brk(14);d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(93,107,122);d.text("OVERALL REMARKS",L,y);y+=4;d.setFont("helvetica","normal");d.setTextColor(20);d.setFontSize(9);const ls=d.splitTextToSize(i.overall,R-L);d.text(ls,L,y);y+=ls.length*4.2}
-  y+=6;brk(44);
+  y+=6;brk(46);
   const col=(x,title,name,user,when,sig)=>{d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(title,x,y);d.setDrawColor(29,79,145);d.line(x,y+1.5,x+82,y+1.5);
     d.setTextColor(20);if(sig){try{d.addImage(sig,sig.startsWith("data:image/jpeg")?"JPEG":"PNG",x,y+3,54,18)}catch(e){}}
-    d.setDrawColor(150);d.line(x,y+22,x+82,y+22);d.setFont("helvetica","normal");d.setFontSize(8.5);d.text("Name: "+(name||"-")+(user?" ("+user+")":""),x,y+27);d.text("Date: "+(when?dt(when):"-"),x,y+32)};
-  col(L,"CHECKED BY",i.checkedName,i.checkedBy,i.checkedAt,null);
+    d.setDrawColor(150);d.line(x,y+22,x+82,y+22);d.setFont("helvetica","normal");d.setFontSize(8.5);d.text("Name: "+(name||"-")+(user?" ("+user+")":""),x,y+27);
+    const w=when?new Date(when):null;d.text("Date: "+(w?dmy(ymd(w)):"-")+"      Time: "+(w?String(w.getHours()).padStart(2,"0")+":"+String(w.getMinutes()).padStart(2,"0"):"-"),x,y+32)};
+  col(L,"CHECKED BY",i.checkedName,i.checkedBy,i.checkedAt,i.checkSignature||null);
   col(110,"VERIFIED BY",i.verifiedName,i.verifiedBy,i.verifiedAt,i.signature);
-  if(i.verifyComment){d.setFontSize(8);d.text("Comment: "+i.verifyComment,110,y+37)}
+  if(i.verifyComment){d.setFontSize(8);d.text(d.splitTextToSize("Comment: "+i.verifyComment,82),110,y+37)}
   const n=d.getNumberOfPages();for(let p=1;p<=n;p++){d.setPage(p);d.setFontSize(7.5);d.setTextColor(120);d.text(`AC Charger Inspection Report · ${i.pileId} · Page ${p} of ${n}`,105,290,{align:"center"})}
   d.save(`QC_${i.pileId}_${i.day}.pdf`);toast("PDF downloaded")
 }
 async function exportCsv(){
   const list=applyFilt(S.insp,S.tab!=="dash");
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","Result","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","CCTV LED","CCTV QR ID","Pile ID input",...ITEMS.map(i=>i.code)];
-  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,i.status,i.status==="PASS"?"FG":"REJECT",(i.ngItems||[]).length,(i.ngItems||[]).map(k=>ITEM[k]?.code+" "+ITEM[k]?.text).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.led||"",i.cctvId||"",i.pileMethod==="key"?"Key in":"Scan",...ITEMS.map(t=>i.results?.[t.key]||"")]);
+  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV light","CCTV light after unbind","Pile ID input","Checklist version",...ITEMS.map(i=>i.code)];
+  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
   const csv="﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`QC_records_${S.filt.from||"all"}_${S.filt.to||"all"}.csv`;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("CSV downloaded")
 }
@@ -881,7 +969,7 @@ document.addEventListener("click",async e=>{
     case"livescan":startLive(t.dataset.target);break;
     case"closescan":stopLive();break;
     case"snapscan":snapLive();break;
-    case"res":if(t.dataset.key==="B-4a")break;f.res[t.dataset.key]=f.res[t.dataset.key]===t.dataset.v?undefined:t.dataset.v;if(!f.res[t.dataset.key])delete f.res[t.dataset.key];saveDraft();updateFormUI();break;
+    case"res":if(t.disabled||isAuto(ITEM[t.dataset.key]?.opt))break;f.res[t.dataset.key]=f.res[t.dataset.key]===t.dataset.v?undefined:t.dataset.v;if(!f.res[t.dataset.key])delete f.res[t.dataset.key];saveDraft();updateFormUI();break;
     case"allok":t.dataset.keys.split(",").forEach(k=>f.res[k]="OK");saveDraft();updateFormUI();break;
     case"panel":f.panel=f.panel===t.dataset.v?"":t.dataset.v;saveDraft();updateFormUI();break;
     case"clearform":{const k=f.batchId;S.form=blankForm();S.form.batchId=k;saveDraft();$("#view").innerHTML=viewHtml();afterRender();toast("Form cleared");break}
@@ -891,6 +979,7 @@ document.addEventListener("click",async e=>{
     case"sel":t.checked?S.sel.add(t.dataset.id):S.sel.delete(t.dataset.id);if($("#v-btn"))$("#v-btn").textContent=`Verify ${S.sel.size} selected`;break;
     case"selall":document.querySelectorAll('[data-act="sel"]').forEach(c=>{c.checked=t.checked;t.checked?S.sel.add(c.dataset.id):S.sel.delete(c.dataset.id)});if($("#v-btn"))$("#v-btn").textContent=`Verify ${S.sel.size} selected`;break;
     case"padclear":PAD?.clear();break;
+    case"cpadclear":CPAD?.clear();break;
     case"verifysel":verify([...S.sel],$("#v-err"),t);break;
     case"verifyone":verify([t.dataset.id],$("#v-err"),t);break;
     case"pdf":{const i=S.insp.find(x=>x.id===t.dataset.id);if(i)makePdf(i);break}
@@ -906,14 +995,14 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
-  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="pileId")updateFormUI()}
+  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(["pileId","nameplateId","boxId","cctvId"].includes(t.dataset.f))updateFormUI()}
   if(t.dataset.rem&&S.form){S.form.rem[t.dataset.rem]=t.value;saveDraft();updateFormUI()}
 });
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.dataset.scan){handleScan(t);return}
   if(t.dataset.f==="batchId"&&S.form){S.form.batchId=t.value;saveDraft()}
-  if(t.dataset.f==="led"&&S.form){S.form.led=t.value;if(!t.value)delete S.form.res["B-4a"];else S.form.res["B-4a"]=t.value==="Green blinking"?"OK":"NG";saveDraft();updateFormUI()}
+  if((t.dataset.f==="led"||t.dataset.f==="led2"||t.dataset.f==="panel")&&S.form){S.form[t.dataset.f]=t.value;saveDraft();updateFormUI()}
   if(t.dataset.f==="pileMethod"&&S.form){S.form.pileMethod=t.value;S.form.pileId="";S.form.reinspect=false;saveDraft();$("#view").innerHTML=viewHtml();afterRender();(t.value==="key"?$("#f-pile"):null)?.focus()}
   if(t.dataset.filt){S.filt[t.dataset.filt]=t.value;$("#view").innerHTML=viewHtml();afterRender()}
 });
