@@ -489,7 +489,7 @@ function setScanValue(target,v){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v1.6";
+const APP_VERSION="v1.7";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -830,10 +830,20 @@ async function makePdf(i){
   head();
   SECTIONS.forEach(sec=>{brk(6);d.setFillColor(223,231,241);d.rect(L,y,R-L,6,"F");d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(sec.ltr+".  "+sec.title,L+2,y+4.2);y+=6;d.setTextColor(20);
     sec.groups.forEach(g=>{brk(5.5);d.setFont("helvetica","bold");d.setFontSize(8.5);d.text(g.n+". "+g.title,L+14,y+3.9);y+=5.5;line(y);
-      g.items.forEach(([c,t])=>{brk(5.5);const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";d.setFont("helvetica","normal");d.setFontSize(8.5);d.setTextColor(93,107,122);d.text(c,L+2,y+3.9);d.setTextColor(20);d.text(t,L+18,y+3.9);
+      g.items.forEach(([c,t])=>{const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";
+        let rm=i.remarks?.[k]||"",full="";
+        if(k==="B-4a"&&i.led)rm="LED: "+i.led+(rm?" · "+rm:"");
+        if(k==="B-4b"&&(i.cctvId||i.cctvPw)){const sn=(String(i.cctvId||"").match(/SN\s*[:=]\s*([A-Za-z0-9-]+)/)||[])[1];
+          full="CCTV QR ID: "+(i.cctvId||"-")+(i.cctvPw?"    PW: "+i.cctvPw:"");rm=(sn?"SN: "+sn:"")+(rm?(sn?" · ":"")+rm:"");}
+        d.setFont("helvetica","normal");d.setFontSize(7.5);
+        const rl=rm?d.splitTextToSize(rm,R-147):[],fl=full?d.splitTextToSize(full,R-L-20):[];
+        const top=Math.max(5.5,rl.length*3.2+2.4),h=top+(fl.length?fl.length*3.2+1.6:0);
+        brk(h);
+        d.setFontSize(8.5);d.setTextColor(93,107,122);d.text(c,L+2,y+3.9);d.setTextColor(20);d.text(t,L+18,y+3.9);
         d.setFont("helvetica","bold");if(v==="NG")d.setTextColor(179,38,30);else d.setTextColor(31,122,74);d.text(v,131,y+3.9);d.setTextColor(20);d.setFont("helvetica","normal");
-        let rm=i.remarks?.[k]||"";if(k==="B-4b"&&(i.cctvId||i.cctvPw))rm=`QR ID: ${i.cctvId||"-"}`+(i.cctvPw?`  PW: ${i.cctvPw}`:"")+(rm?"  "+rm:"");if(k==="B-4a"&&i.led)rm="LED: "+i.led+(rm?"  "+rm:"");
-        d.setFontSize(7.5);d.text(d.splitTextToSize(rm,R-146)[0]||"",146,y+3.9);y+=5.5;line(y,225)})})});
+        d.setFontSize(7.5);rl.forEach((ln,ix)=>d.text(ln,146,y+3.9+ix*3.2));
+        if(fl.length){d.setTextColor(70,80,92);fl.forEach((ln,ix)=>d.text(ln,L+18,y+top+2.2+ix*3.2));d.setTextColor(20)}
+        y+=h;line(y,225)})})});
   if(i.overall){y+=4;brk(14);d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(93,107,122);d.text("OVERALL REMARKS",L,y);y+=4;d.setFont("helvetica","normal");d.setTextColor(20);d.setFontSize(9);const ls=d.splitTextToSize(i.overall,R-L);d.text(ls,L,y);y+=ls.length*4.2}
   y+=6;brk(44);
   const col=(x,title,name,user,when,sig)=>{d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(title,x,y);d.setDrawColor(29,79,145);d.line(x,y+1.5,x+82,y+1.5);
