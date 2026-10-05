@@ -106,6 +106,7 @@ label.btn.primary{color:var(--accent-ink)}
 .st-rej{background:var(--ng-bg);color:var(--ng)}
 .kpi.hold .v{color:var(--hold)}
 .cctvbox{display:flex;flex-direction:column;gap:2px;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--paper);font-size:14px;min-width:0}
+.cctvbox.bad{border-color:var(--ng)}
 .cctvbox div{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;overflow-wrap:anywhere}
 .cctvbox .ck{font-family:var(--f-display);font-weight:700;color:var(--muted);letter-spacing:.06em}
 .autotag{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:3px;vertical-align:1px}
@@ -232,13 +233,18 @@ function idsMatch(a,b){a=normId(a);b=normId(b);if(!a||!b)return false;if(a===b)r
 function applyAutos(f){
   ITEMS.forEach(it=>{const o=it.opt,k=it.key;
     if(o.led){if(f[o.led])f.res[k]=f[o.led]==="Green blinking"?"OK":"NG";else delete f.res[k]}
-    else if(o.scan&&o.match){const v=f[o.scan];if(v&&f.pileId){const okm=idsMatch(v,f.pileId);f.res[k]=okm?"OK":"NG";if(!okm&&!(f.rem[k]||"").trim())f.rem[k]="ID mismatch: "+v}else delete f.res[k]}
-    else if(o.scan&&o.auto){if((f[o.scan]||"").trim())f.res[k]="OK";else delete f.res[k]}
+    else if(o.scan&&o.match){const v=f[o.scan];const auto=/^ID mismatch: /.test(f.rem[k]||"");if(v&&f.pileId){const okm=idsMatch(v,f.pileId);f.res[k]=okm?"OK":"NG";if(!okm&&(!(f.rem[k]||"").trim()||auto))f.rem[k]="ID mismatch: "+v;if(okm&&auto)delete f.rem[k]}else{delete f.res[k];if(auto)delete f.rem[k]}}
+    else if(o.scan&&o.auto){const v=(f[o.scan]||"").trim(),auto=(f.rem[k]||"")===AUTO_REM_CCTV;if(!v){delete f.res[k];if(auto)delete f.rem[k]}
+      else if(o.scan!=="cctvId"||cctvValid(v)){f.res[k]="OK";if(auto)delete f.rem[k]}
+      else{f.res[k]="NG";if(!(f.rem[k]||"").trim())f.rem[k]=AUTO_REM_CCTV}}
   });
 }
 function parseCctv(v){const o={};String(v||"").replace(/[{}]/g,"").split(/[,;\n]/).forEach(p=>{const m=p.match(/^\s*([A-Za-z]{2,4})\s*[:=]\s*(.+?)\s*$/);if(m)o[m[1].toUpperCase()]=m[2]});return o}
-function cctvParts(v){const o=parseCctv(v),keys=["SN","DT","SC"].filter(k=>o[k]);Object.keys(o).forEach(k=>{if(!keys.includes(k))keys.push(k)});return keys.map(k=>[k,o[k]])}
-function cctvBoxHtml(v){const parts=cctvParts(v);if(!parts.length)return"";return `<div class="cctvbox">${parts.map(([k,x])=>`<div><span class="ck">${esc(k)}</span><span class="mono">${esc(x)}</span></div>`).join("")}</div>`}
+const CCTV_KEYS=["SN","DT","SC"];
+function cctvValid(v){const o=parseCctv(v);return CCTV_KEYS.every(k=>(o[k]||"").trim())}
+function cctvParts(v){if(!String(v||"").trim())return[];const o=parseCctv(v),rows=CCTV_KEYS.map(k=>[k,o[k]||"–"]);Object.keys(o).forEach(k=>{if(!CCTV_KEYS.includes(k))rows.push([k,o[k]])});if(!Object.keys(o).length)rows.push(["QR",String(v).trim()]);return rows}
+const AUTO_REM_CCTV="CCTV QR format not valid (must have SN, DT and SC)";
+function cctvBoxHtml(v){const parts=cctvParts(v);if(!parts.length)return"";const ok=cctvValid(v);return `<div class="cctvbox ${ok?"":"bad"}">${parts.map(([k,x])=>`<div><span class="ck">${esc(k)}</span><span class="mono">${esc(x)}</span></div>`).join("")}<div class="small" style="display:block;margin-top:4px">${ok?'<b style="color:var(--ok)">Format OK</b>':'<b style="color:var(--ng)">Wrong QR format – needs SN, DT and SC. Counted as NG.</b>'}</div></div>`}
 function isAuto(o){return !!(o&&(o.led||(o.scan&&(o.match||o.auto))))}
 const STATUS_INFO={PASS:["st-pass","PASS · FG"],QUARANTINE:["st-hold","QUARANTINE"],REJECT:["st-rej","REJECT"],"ON HOLD":["st-hold","ON HOLD"]};
 
@@ -305,7 +311,7 @@ async function seedDemo(){
       const st=!ver?"PENDING":ng.length?(rnd()<.6?"QUARANTINE":"REJECT"):"PASS";
       M.insp.push({id:"s"+k,cl:2,batchId:bid,batchNo:bno,pileId:pile,pileMethod:rnd()<.85?"scan":"key",product:PRODUCT,model:MODEL,panel:rnd()<.5?"A":"B",
         results:res,remarks:rem,ngItems:ng,status:st,led:ng.includes("B-1j")?["Green static","Red blinking","Red static"][k%3]:"Green blinking",led2:ng.includes("B-2g")?"Red static":"Green blinking",
-        nameplateId:ng.includes("A-4b")?pile.slice(0,-1)+"9":pile,boxId:pile,cctvId:"{SN:BM10AD0A"+(10000+k)+",DT:DH-IPC-HFW1230S}",cctvPw:"",
+        nameplateId:ng.includes("A-4b")?pile.slice(0,-1)+"9":pile,boxId:pile,cctvId:"{SN:BM10AD0A"+(10000+k)+",DT:DH-IPC-HFW1230S,SC:L2F8"+(1000+k)+"}",cctvPw:"",
         overall:ng.length?"Unit moved to rework area.":"",reinspect:false,checkedBy:who[0],checkedName:who[1],checkedAt:d.toISOString(),day:ymd(d),checkSignature:sig,
         verified:ver,verifiedBy:ver?"farah":"",verifiedName:ver?"Farah Aziz":"",verifiedAt:ver?new Date(d.getTime()+3*36e5).toISOString():"",verifyComment:"",signature:ver?sig:""})}});
 }
@@ -599,7 +605,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.2";
+const APP_VERSION="v2.3";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
