@@ -105,6 +105,9 @@ label.btn.primary{color:var(--accent-ink)}
 .scanprev{width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
 .st-rej{background:var(--ng-bg);color:var(--ng)}
 .kpi.hold .v{color:var(--hold)}
+.cctvbox{display:flex;flex-direction:column;gap:2px;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--paper);font-size:14px;min-width:0}
+.cctvbox div{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;overflow-wrap:anywhere}
+.cctvbox .ck{font-family:var(--f-display);font-weight:700;color:var(--muted);letter-spacing:.06em}
 .autotag{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:3px;vertical-align:1px}
 .rbadge{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.06em;min-width:48px;padding:5px 10px;border-radius:4px;text-align:center;cursor:default;display:inline-block}
 .rbadge.ok{background:var(--ok-bg);color:var(--ok)} .rbadge.ng{background:var(--ng);color:var(--paper)} .rbadge.none{background:var(--soft);color:var(--muted)}
@@ -233,6 +236,9 @@ function applyAutos(f){
     else if(o.scan&&o.auto){if((f[o.scan]||"").trim())f.res[k]="OK";else delete f.res[k]}
   });
 }
+function parseCctv(v){const o={};String(v||"").replace(/[{}]/g,"").split(/[,;\n]/).forEach(p=>{const m=p.match(/^\s*([A-Za-z]{2,4})\s*[:=]\s*(.+?)\s*$/);if(m)o[m[1].toUpperCase()]=m[2]});return o}
+function cctvParts(v){const o=parseCctv(v),keys=["SN","DT","SC"].filter(k=>o[k]);Object.keys(o).forEach(k=>{if(!keys.includes(k))keys.push(k)});return keys.map(k=>[k,o[k]])}
+function cctvBoxHtml(v){const parts=cctvParts(v);if(!parts.length)return"";return `<div class="cctvbox">${parts.map(([k,x])=>`<div><span class="ck">${esc(k)}</span><span class="mono">${esc(x)}</span></div>`).join("")}</div>`}
 function isAuto(o){return !!(o&&(o.led||(o.scan&&(o.match||o.auto))))}
 const STATUS_INFO={PASS:["st-pass","PASS · FG"],QUARANTINE:["st-hold","QUARANTINE"],REJECT:["st-rej","REJECT"],"ON HOLD":["st-hold","ON HOLD"]};
 
@@ -505,7 +511,7 @@ function scanBox(target,f){return `<div class="scanbox"><input type="text" class
 function itemExtra(k,o,f){
   o=o||{};
   if(o.led)return `<select class="led-sel" id="f-${o.led}" data-f="${o.led}" aria-label="CCTV indication light"><option value="">Select light status…</option>${LED_OPTS.map(x=>`<option ${f[o.led]===x?"selected":""}>${x}</option>`).join("")}</select>`;
-  if(o.scan)return `<div style="flex:1 1 100%">${scanBox(o.scan,f)}</div>`;
+  if(o.scan)return `<div style="flex:1 1 100%;min-width:0">${scanBox(o.scan,f)}${o.scan==="cctvId"?`<div id="cctv-parts">${cctvBoxHtml(f.cctvId)}</div>`:""}</div>`;
   return "";
 }
 function updateFormUI(){
@@ -521,6 +527,7 @@ function updateFormUI(){
   ["nameplateId","boxId"].forEach(t=>{const h=$("#hint-"+t);if(!h)return;const v=f[t];
     h.innerHTML=!v?"":!f.pileId?"Scan the charging pile ID first to compare.":idsMatch(v,f.pileId)?'<b style="color:var(--ok)">Matches charging pile ID</b>':'<b style="color:var(--ng)">Does not match charging pile ID</b>'});
   ["pileId","nameplateId","boxId","cctvId"].forEach(t=>{const el=$("#f-"+t);if(el)el.classList.toggle("has",!!(f[t]||"").trim())});
+  const cp=$("#cctv-parts");if(cp)cp.innerHTML=cctvBoxHtml(f.cctvId);
   const done=ok+ng,t=ITEMS.length;
   $("#f-bar").style.width=(done/t*100)+"%";
   $("#f-counts").innerHTML=`<b>${done}</b> / ${t} checked · <b>${ok}</b> OK · <b style="color:var(--ng)">${ng}</b> NG`;
@@ -589,7 +596,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.0";
+const APP_VERSION="v2.1";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -755,7 +762,7 @@ async function verify(ids,errEl,btn){
 function extraFor(i,k,o){
   o=o||{};const parts=[];
   if(o.led&&i[o.led])parts.push(`Light: <b>${esc(i[o.led])}</b>`);
-  if(o.scan&&i[o.scan])parts.push(`${esc(SCAN_LABEL[o.scan]||"ID")}: <span class="mono">${esc(i[o.scan])}</span>`);
+  if(o.scan&&i[o.scan]){const cp=o.scan==="cctvId"?cctvParts(i[o.scan]):[];parts.push(cp.length?cp.map(([k,x])=>`${esc(k)}: <span class="mono">${esc(x)}</span>`).join("<br>"):`${esc(SCAN_LABEL[o.scan]||"ID")}: <span class="mono">${esc(i[o.scan])}</span>`)}
   if(o.scan==="cctvId"&&i.cctvPw)parts.push(`PW: <span class="mono">${esc(i.cctvPw)}</span>`);
   return parts.join(" · ");
 }
@@ -917,18 +924,20 @@ async function makePdf(i){
       g.items.forEach(([c,t,o])=>{o=o||{};const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";
         let rm=i.remarks?.[k]||"",full="";
         if(o.led&&i[o.led])rm="Light: "+i[o.led]+(rm?" · "+rm:"");
-        if(o.scan&&(i[o.scan]||(o.scan==="cctvId"&&i.cctvPw))){const val=String(i[o.scan]||"-"),lab=SCAN_LABEL[o.scan]||"ID";
+        let fullLines=null;
+        if(o.scan==="cctvId"&&cctvParts(i.cctvId).length){fullLines=cctvParts(i.cctvId).map(([kk,x])=>kk+": "+x);if(i.cctvPw)fullLines.push("PW: "+i.cctvPw)}
+        else if(o.scan&&(i[o.scan]||(o.scan==="cctvId"&&i.cctvPw))){const val=String(i[o.scan]||"-"),lab=SCAN_LABEL[o.scan]||"ID";
           const sn=o.scan==="cctvId"?(val.match(/SN\s*[:=]\s*([A-Za-z0-9-]+)/)||[])[1]:null;
           if(val.length>28||sn||(o.scan==="cctvId"&&i.cctvPw)){full=lab+": "+val+(o.scan==="cctvId"&&i.cctvPw?"    PW: "+i.cctvPw:"");rm=(sn?"SN: "+sn:"")+(rm?(sn?" · ":"")+rm:"")}
           else rm="ID: "+val+(rm?" · "+rm:"")}
         d.setFont("helvetica","normal");d.setFontSize(7.5);
-        const rl=rm?d.splitTextToSize(rm,R-147):[],fl=full?d.splitTextToSize(full,R-L-20):[];
-        const top=Math.max(5.5,rl.length*3.2+2.4),h=top+(fl.length?fl.length*3.2+1.6:0);
+        const rl=rm?d.splitTextToSize(rm,R-147):[],fl=fullLines?fullLines.flatMap(x=>d.splitTextToSize(x,R-L-24)):full?d.splitTextToSize(full,R-L-20):[];
+        const top=Math.max(5.5,rl.length*3.2+2.4),h=top+(fl.length?fl.length*3.4+1.6:0);
         brk(h);
         d.setFontSize(8.5);d.setTextColor(93,107,122);d.text(c,L+2,y+3.9);d.setTextColor(20);d.text(d.splitTextToSize(t,108)[0],L+18,y+3.9);
         d.setFont("helvetica","bold");if(v==="NG")d.setTextColor(179,38,30);else d.setTextColor(31,122,74);d.text(v,131,y+3.9);d.setTextColor(20);d.setFont("helvetica","normal");
         d.setFontSize(7.5);rl.forEach((ln,ix)=>d.text(ln,146,y+3.9+ix*3.2));
-        if(fl.length){d.setTextColor(70,80,92);fl.forEach((ln,ix)=>d.text(ln,L+18,y+top+2.2+ix*3.2));d.setTextColor(20)}
+        if(fl.length){d.setTextColor(70,80,92);fl.forEach((ln,ix)=>{const yy=y+top+2.2+ix*3.4;if(fullLines){const m=ln.match(/^([A-Z]{2,4}): (.*)$/);if(m){d.setFont("helvetica","bold");d.text(m[1],L+18,yy);d.setFont("helvetica","normal");d.text(m[2],L+28,yy);return}}d.text(ln,L+18,yy)});d.setTextColor(20)}
         y+=h;line(y,225)});
       if(g.note){brk(6);d.setFont("helvetica","bolditalic");d.setFontSize(7.5);d.setTextColor(163,90,0);d.text("* "+g.note,L+18,y+4);d.setTextColor(20);y+=6}})});
   if(i.overall){y+=4;brk(14);d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(93,107,122);d.text("OVERALL REMARKS",L,y);y+=4;d.setFont("helvetica","normal");d.setTextColor(20);d.setFontSize(9);const ls=d.splitTextToSize(i.overall,R-L);d.text(ls,L,y);y+=ls.length*4.2}
@@ -946,8 +955,8 @@ async function makePdf(i){
 async function exportCsv(){
   const list=applyFilt(S.insp,S.tab!=="dash");
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV light","CCTV light after unbind","Pile ID input","Checklist version",...ITEMS.map(i=>i.code)];
-  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
+  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version",...ITEMS.map(i=>i.code)];
+  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
   const csv="﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`QC_records_${S.filt.from||"all"}_${S.filt.to||"all"}.csv`;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("CSV downloaded")
 }
