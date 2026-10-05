@@ -525,7 +525,7 @@ function updateFormUI(){
     r.querySelector(".ok").setAttribute("aria-pressed",v==="OK");r.querySelector(".ng").setAttribute("aria-pressed",v==="NG");
     if(v==="OK")ok++;if(v==="NG")ng++});
   ["nameplateId","boxId"].forEach(t=>{const h=$("#hint-"+t);if(!h)return;const v=f[t];
-    h.innerHTML=!v?"":!f.pileId?"Scan the charging pile ID first to compare.":idsMatch(v,f.pileId)?'<b style="color:var(--ok)">Matches charging pile ID</b>':'<b style="color:var(--ng)">Does not match charging pile ID</b>'});
+    h.innerHTML=!v?"":!f.pileId?"Scan the charging pile ID first to compare.":(t==="nameplateId"&&f.npAuto)?'<b style="color:var(--ok)">Filled from charging pile ID.</b> Scan the nameplate QR if it is different.':idsMatch(v,f.pileId)?'<b style="color:var(--ok)">Matches charging pile ID</b>':'<b style="color:var(--ng)">Does not match charging pile ID</b>'});
   ["pileId","nameplateId","boxId","cctvId"].forEach(t=>{const el=$("#f-"+t);if(el)el.classList.toggle("has",!!(f[t]||"").trim())});
   const cp=$("#cctv-parts");if(cp)cp.innerHTML=cctvBoxHtml(f.cctvId);
   const done=ok+ng,t=ITEMS.length;
@@ -537,11 +537,14 @@ function updateFormUI(){
   $("#dup").innerHTML=prev.length?`<div class="warn">Pile ID ${esc(pid)} was already inspected on ${dt(prev[0].checkedAt)} (${esc(statusText(prev[0].status))}). <label style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:14px;color:inherit"><input type="checkbox" id="f-reinspect" data-f="reinspect" ${f.reinspect?"checked":""}> This is a re-inspection</label></div>`:"";
 }
 function setScanValue(target,v){
-  v=String(v||"").trim();if(target==="pileId"){v=v.toUpperCase();S.form.reinspect=false}
+  v=String(v||"").trim();if(target==="pileId"){v=v.toUpperCase();S.form.reinspect=false;syncNameplate(v)}
+  if(target==="nameplateId")S.form.npAuto=false;
   S.form[target]=v;saveDraft();
   const el=$("#f-"+target);
   if(el){el.value=v;updateFormUI()}else{$("#view").innerHTML=viewHtml();afterRender()}
 }
+// Nameplate ID follows the charging pile ID automatically, unless the staff scanned a different nameplate ID
+function syncNameplate(newPile){const f=S.form,old=f.pileId||"";if(!f.nameplateId||f.nameplateId===old||f.npAuto){f.nameplateId=newPile;f.npAuto=true;const el=$("#f-nameplateId");if(el)el.value=newPile}}
 let CPAD=null;
 async function submitForm(){
   const f=S.form,s=me(),err=$("#f-err");err.textContent="";
@@ -596,7 +599,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.1";
+const APP_VERSION="v2.2";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -1004,7 +1007,7 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
-  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(["pileId","nameplateId","boxId","cctvId"].includes(t.dataset.f))updateFormUI()}
+  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="nameplateId")S.form.npAuto=false;if(t.dataset.f==="pileId")syncNameplate(t.value.trim().toUpperCase());if(["pileId","nameplateId","boxId","cctvId"].includes(t.dataset.f))updateFormUI()}
   if(t.dataset.rem&&S.form){S.form.rem[t.dataset.rem]=t.value;saveDraft();updateFormUI()}
 });
 document.addEventListener("change",e=>{
