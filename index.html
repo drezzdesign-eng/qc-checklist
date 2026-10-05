@@ -214,6 +214,7 @@ const TABS={staff:[["new","New inspection"],["mine","My records"]],
   admin:[["dash","Dashboard"],["verify","To verify"],["records","Records"],["batches","Batches"],["accounts","Accounts"]]};
 
 /* ---------- state ---------- */
+const DEFAULT_API="https://script.google.com/macros/s/AKfycby1QhK_2NTbn0nevVW7DEdoa2DGhjxxkDbtYMz8YH1-IUkwDhUVbzLg-__DlxibxSFG/exec";
 let API="",TOKEN="",DEMO=false,POLL=null;
 const S={phase:"loading",accounts:{},batches:[],insp:[],session:null,tab:null,detail:null,
   filt:{from:daysAgo(29),to:today(),batch:"",status:""},sel:new Set(),form:null,acctEdit:null};
@@ -330,7 +331,7 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
   const h=location.hash||"";
   if(h.startsWith("#api=")){ls("czqc-api",decodeURIComponent(h.slice(5)));history.replaceState(null,"",location.pathname+location.search)}
   if(h==="#demo")DEMO=true;
-  API=ls("czqc-api")||"";
+  API=ls("czqc-api")||DEFAULT_API;
   if(!API&&!DEMO){S.phase="config";render();return}
   await start();
 })();
@@ -487,7 +488,7 @@ function setScanValue(target,v){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v1.4";
+const APP_VERSION="v1.5";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
