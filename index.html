@@ -104,6 +104,8 @@ label.btn.primary{color:var(--accent-ink)}
 .cctvbox.bad{border-color:var(--ng)}
 .cctvbox div{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;overflow-wrap:anywhere}
 .cctvbox .ck{font-family:var(--f-display);font-weight:700;color:var(--muted);letter-spacing:.06em}
+.timer{font-family:var(--f-mono);font-weight:500;font-size:16px;color:var(--accent);background:var(--accent-soft);padding:3px 10px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.timer.idle{color:var(--muted);background:var(--soft)}
 .autotag{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:3px;vertical-align:1px}
 .rbadge{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.06em;min-width:48px;padding:5px 10px;border-radius:4px;text-align:center;cursor:default;display:inline-block}
 .rbadge.ok{background:var(--ok-bg);color:var(--ok)} .rbadge.ng{background:var(--ng);color:var(--paper)} .rbadge.none{background:var(--soft);color:var(--muted)}
@@ -133,7 +135,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--soft)}
 .empty{padding:28px 12px;text-align:center;color:var(--muted)}
 
 /* dashboard */
-.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .kpi{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .kpi .v{font-family:var(--f-display);font-weight:700;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums}
 .kpi .s{font-size:12px;color:var(--muted)}
@@ -152,7 +154,7 @@ svg text{font-family:var(--f-body)}
 .signoff .col{display:flex;flex-direction:column;gap:6px;min-width:0}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:4px;font-size:14px;z-index:20;max-width:90vw}
 
-@media (max-width:960px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:960px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){
   .grid2,.signoff{grid-template-columns:1fr}
@@ -244,6 +246,10 @@ function isAuto(o){return !!(o&&(o.led||(o.scan&&(o.match||o.auto))))}
 const STATUS_INFO={PASS:["st-pass","PASS · FG"],QUARANTINE:["st-hold","QUARANTINE"],REJECT:["st-rej","REJECT"],"ON HOLD":["st-hold","ON HOLD"]};
 
 function statusPill(i){const s=STATUS_INFO[i.status];return s?`<span class="status ${s[0]}">${s[1]}</span>`:'<span class="status st-pending">AWAITING VERIFIER</span>'}
+function fmtDur(sec){sec=Math.round(Number(sec));if(!(sec>=0))return"–";const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return h?`${h}h ${String(m).padStart(2,"0")}m`:`${m}m ${String(x).padStart(2,"0")}s`}
+function clock(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return (h?h+":"+String(m).padStart(2,"0"):String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0")}
+function waitSec(i){return i.checkedAt?(Date.now()-new Date(i.checkedAt).getTime())/1000:NaN}
+function avg(a){a=a.filter(x=>x>=0);return a.length?a.reduce((p,c)=>p+c,0)/a.length:NaN}
 function statusText(s){return s==="PASS"?"PASS (FG)":s==="QUARANTINE"?"QUARANTINE":s==="REJECT"?"REJECT":s==="ON HOLD"?"ON HOLD":"Awaiting verifier"}
 function isQuar(i){return i.status==="QUARANTINE"||i.status==="ON HOLD"}
 const PRODUCT="SMART AC CHARGER 7KW", MODEL="E7-P2-001101", REV="REV : 001/EVCLR/2026";
@@ -307,14 +313,14 @@ async function seedDemo(){
       M.insp.push({id:"s"+k,cl:2,batchId:bid,batchNo:bno,pileId:pile,pileMethod:rnd()<.85?"scan":"key",product:PRODUCT,model:MODEL,panel:rnd()<.5?"A":"B",
         results:res,remarks:rem,ngItems:ng,status:st,led:ng.includes("B-1j")?["Green static","Red blinking","Red static"][k%3]:"Green blinking",led2:ng.includes("B-2g")?"Red static":"Green blinking",
         nameplateId:ng.includes("A-4b")?pile.slice(0,-1)+"9":pile,boxId:pile,cctvId:"{SN:BM10AD0A"+(10000+k)+",DT:DH-IPC-HFW1230S,SC:L2F8"+(1000+k)+"}",cctvPw:"",
-        overall:ng.length?"Unit moved to rework area.":"",reinspect:false,checkedBy:who[0],checkedName:who[1],checkedAt:d.toISOString(),day:ymd(d),checkSignature:sig,
+        overall:ng.length?"Unit moved to rework area.":"",reinspect:false,checkedBy:who[0],checkedName:who[1],checkedAt:d.toISOString(),day:ymd(d),checkSignature:sig,checkSec:Math.round(360+rnd()*900+(who[0]==="amir"?240:0)),verifySec:ver?Math.round(900+rnd()*14000):"",
         verified:ver,verifiedBy:ver?"farah":"",verifiedName:ver?"Farah Aziz":"",verifiedAt:ver?new Date(d.getTime()+3*36e5).toISOString():"",verifyComment:"",signature:ver?sig:""})}});
 }
 async function mockApi(action,p){
   await new Promise(r=>setTimeout(r,150));
   const fail=m=>({ok:false,error:m}),ok=o=>({ok:true,...o});
   const pub=a=>({username:a.username,name:a.name,role:a.role});
-  if(action==="ping")return ok({setup:true,version:3});
+  if(action==="ping")return ok({setup:true,version:4});
   if(action==="viewData"){if(p.key!=="demo")return fail("VIEW_LINK_INVALID");return ok({batches:JSON.parse(JSON.stringify(M.batches)),inspections:JSON.parse(JSON.stringify(M.insp))})}
   if(action==="login"){const a=M.acc[cleanUser(p.username)];if(!a||a.pin!==String(p.pin))return fail("Username or PIN is not correct.");if(!a.active)return fail("This account is deactivated. Contact your admin.");return ok({token:"demo|"+a.username,user:pub(a)})}
   const me=M.acc[String(TOKEN).split("|")[1]];if(!me||!me.active)return fail("SESSION_EXPIRED");
@@ -325,9 +331,9 @@ async function mockApi(action,p){
     case"data":return ok({user:pub(me),batches:JSON.parse(JSON.stringify(M.batches)),inspections:JSON.parse(JSON.stringify(M.insp)),accounts:me.role==="admin"?Object.values(M.acc).map(a=>({username:a.username,name:a.name,role:a.role,active:a.active})):undefined});
     case"submit":{if(!need(["staff","admin"]))return fail("Your role cannot do this.");const d=p.insp,b=M.batches.find(x=>x.id===d.batchId);if(!b)return fail("Select the incoming batch.");
       const ng=Object.keys(d.results).filter(k=>d.results[k]==="NG");if(ng.some(k=>!(d.remarks[k]||"").trim()))return fail("Every NG item needs a remark.");const t=new Date();
-      const row={...d,id:"n"+Date.now(),batchNo:b.batchNo,ngItems:ng,status:"PENDING",checkedBy:me.username,checkedName:me.name,checkedAt:t.toISOString(),day:ymd(t),verified:false};M.insp.push(row);return ok({id:row.id,status:row.status})}
+      const row={...d,checkSec:d.checkSec===""?"":+d.checkSec,id:"n"+Date.now(),batchNo:b.batchNo,ngItems:ng,status:"PENDING",checkedBy:me.username,checkedName:me.name,checkedAt:t.toISOString(),day:ymd(t),verified:false};M.insp.push(row);return ok({id:row.id,status:row.status})}
     case"verify":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");if(!["PASS","QUARANTINE","REJECT"].includes(p.status))return fail("Select the final status.");let n=0,sk=0;const t=new Date().toISOString();
-      M.insp.forEach(i=>{if(!p.ids.includes(i.id))return;if(i.verified||i.checkedBy===me.username||(p.status==="PASS"&&(i.ngItems||[]).length)){sk++;return}Object.assign(i,{verified:true,status:p.status,verifiedBy:me.username,verifiedName:me.name,verifiedAt:t,signature:p.signature,verifyComment:p.comment||""});n++});return ok({verified:n,skipped:sk})}
+      M.insp.forEach(i=>{if(!p.ids.includes(i.id))return;if(i.verified||i.checkedBy===me.username||(p.status==="PASS"&&(i.ngItems||[]).length)){sk++;return}Object.assign(i,{verifySec:Math.round((Date.now()-new Date(i.checkedAt).getTime())/1000),verified:true,status:p.status,verifiedBy:me.username,verifiedName:me.name,verifiedAt:t,signature:p.signature,verifyComment:p.comment||""});n++});return ok({verified:n,skipped:sk})}
     case"changePin":if(me.pin!==String(p.oldPin))return fail("Current PIN is not correct.");me.pin=String(p.newPin);return ok({});
     case"createAccount":{if(!need(["admin"]))return fail("Your role cannot do this.");const u=cleanUser(p.username);if(M.acc[u])return fail(`Username ${u} is already taken.`);M.acc[u]={username:u,name:p.name,role:p.role,pin:String(p.pin),active:true};return ok({})}
     case"resetPin":{if(!need(["admin"]))return fail("Your role cannot do this.");const a=M.acc[p.username];if(!a)return fail("Account not found.");a.pin=String(p.pin);return ok({})}
@@ -391,7 +397,7 @@ async function start(){
   TOKEN=(DEMO?"":ls("czqc-token"))||"";
   try{
     const p=await api("ping");
-    S.backendV=DEMO?3:(p.version||1);
+    S.backendV=DEMO?4:(p.version||1);
     if(VIEW_KEY){if(!DEMO&&S.backendV<3){S.phase="error";S.err="This view-only link needs the latest Google Sheet script. Ask the admin to update Code.gs.";render();return}
       S.phase="ready";setSession({username:"",name:"Management view",role:"viewer"});render();await loadData();return}
     if(!p.setup){S.phase="setup";render();return}
@@ -448,7 +454,7 @@ function viewHtml(){
   return"";
 }
 function afterRender(){
-  if(S.tab==="new"&&!S.detail)updateFormUI();
+  if(S.tab==="new"&&!S.detail){updateFormUI();ensureTimer()}
   if($("#pad"))PAD=mountPad($("#pad"));
   if($("#cpad"))CPAD=mountPad($("#cpad"));
 }
@@ -502,7 +508,7 @@ function formView(){
       <div class="field"><span class="lbl">Status</span><div class="small muted">PASS / QUARANTINE / REJECT is set by the verifier.</div></div>
     </div>
     <div id="dup"></div></section>
-  <div class="sheet strip"><span class="status st-pending" id="f-status">IN PROGRESS</span>
+  <div class="sheet strip"><span class="status st-pending" id="f-status">IN PROGRESS</span><span class="timer" id="f-timer" title="Checking time">--:--</span>
     <div class="prog"><div class="pbar"><i id="f-bar"></i></div><div class="counts" id="f-counts"></div></div>
     <button class="btn" type="button" data-act="clearform">Clear form</button></div>
   ${sections}
@@ -547,15 +553,19 @@ function updateFormUI(){
   $("#dup").innerHTML=prev.length?`<div class="warn">Pile ID ${esc(pid)} was already inspected on ${dt(prev[0].checkedAt)} (${esc(statusText(prev[0].status))}). <label style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:14px;color:inherit"><input type="checkbox" id="f-reinspect" data-f="reinspect" ${f.reinspect?"checked":""}> This is a re-inspection</label></div>`:"";
 }
 function setScanValue(target,v){
-  v=String(v||"").trim();if(target==="pileId"){v=v.toUpperCase();S.form.reinspect=false;syncNameplate(v)}
+  v=String(v||"").trim();if(target==="pileId"){v=v.toUpperCase();S.form.reinspect=false;syncNameplate(v);startTimer(v)}
   if(target==="nameplateId")S.form.npAuto=false;
   S.form[target]=v;saveDraft();
   const el=$("#f-"+target);
   if(el){el.value=v;updateFormUI()}else{$("#view").innerHTML=viewHtml();afterRender()}
 }
 // Nameplate ID follows the charging pile ID automatically, unless the staff scanned a different nameplate ID
+function startTimer(pile){const f=S.form;if(pile&&(!f.startedAt||(f.timerPile&&f.timerPile!==pile&&!Object.keys(f.res).some(k=>!isAuto(ITEM[k]?.opt))))){f.startedAt=new Date().toISOString();f.timerPile=pile}if(pile&&!f.timerPile)f.timerPile=pile}
 function syncNameplate(newPile){const f=S.form,old=f.pileId||"";if(!f.nameplateId||f.nameplateId===old||f.npAuto){f.nameplateId=newPile;f.npAuto=true;const el=$("#f-nameplateId");if(el)el.value=newPile}}
-let CPAD=null;
+let CPAD=null,TIMER_INT=null;
+function tickTimer(){const el=$("#f-timer");if(!el){clearInterval(TIMER_INT);TIMER_INT=null;return}const f=S.form;
+  if(f&&f.startedAt){el.classList.remove("idle");el.textContent="Checking "+clock((Date.now()-new Date(f.startedAt).getTime())/1000)}else{el.classList.add("idle");el.textContent="Timer starts when you scan the pile ID"}}
+function ensureTimer(){tickTimer();if(!TIMER_INT)TIMER_INT=setInterval(tickTimer,1000)}
 async function submitForm(){
   const f=S.form,s=me(),err=$("#f-err");err.textContent="";
   applyAutos(f);
@@ -577,11 +587,11 @@ async function submitForm(){
   const res={};ITEMS.forEach(i=>res[i.key]=f.res[i.key]);
   const doc={cl:2,batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
     results:res,remarks:rem,ngItems:ng,status:"PENDING",nameplateId:f.nameplateId.trim(),boxId:f.boxId.trim(),cctvId:f.cctvId.trim(),cctvPw:"",
-    led:f.led,led2:f.led2,pileMethod:f.pileMethod==="key"?"key":"scan",overall:f.overall.trim(),reinspect:!!(dup&&f.reinspect),checkSignature:CPAD.data()};
+    led:f.led,led2:f.led2,pileMethod:f.pileMethod==="key"?"key":"scan",overall:f.overall.trim(),reinspect:!!(dup&&f.reinspect),checkSignature:CPAD.data(),checkStartedAt:f.startedAt||"",checkSec:f.startedAt?Math.round((Date.now()-new Date(f.startedAt).getTime())/1000):""};
   const btn=$("#f-submit");btn.disabled=true;btn.textContent="Saving…";
   try{await api("submit",{insp:doc});loadData(true);
     const keep=f.batchId;S.form=blankForm();S.form.batchId=keep;saveDraft();CPAD=null;
-    $("#view").innerHTML=viewHtml();afterRender();window.scrollTo({top:0});toast(`Saved ${pid} · sent to verifier${ng.length?` · ${ng.length} NG`:""}`);
+    $("#view").innerHTML=viewHtml();afterRender();window.scrollTo({top:0});toast(`Saved ${pid} · sent to verifier${doc.checkSec!==""?` · checking time ${fmtDur(doc.checkSec)}`:""}${ng.length?` · ${ng.length} NG`:""}`);
   }catch(e){err.textContent=dbErr(e);btn.disabled=false;btn.textContent="Submit & sign as checker"}
 }
 
@@ -609,7 +619,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.5";
+const APP_VERSION="v2.6";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -794,7 +804,9 @@ function detailView(){
       <div class="field"><span class="lbl">Batch</span><div>${esc(i.batchNo)}</div></div>
       <div class="field"><span class="lbl">Model</span><div class="mono">${esc(i.model)}</div></div>
       <div class="field"><span class="lbl">Decorative panel</span><div>Pattern ${esc(i.panel)}</div></div>
-      <div class="field"><span class="lbl">Inspection date &amp; time</span><div>${dt(i.checkedAt)}</div></div></div>
+      <div class="field"><span class="lbl">Inspection date &amp; time</span><div>${dt(i.checkedAt)}</div></div>
+      <div class="field"><span class="lbl">Checking time</span><div class="mono">${fmtDur(i.checkSec)}</div></div>
+      <div class="field"><span class="lbl">Verify time</span><div class="mono">${i.verified?fmtDur(i.verifySec):`<span style="color:var(--hold)">waiting ${fmtDur(waitSec(i))}</span>`}</div></div></div>
     ${hasNg?`<div class="warn">${(i.ngItems||[]).length} NG item(s): ${(i.ngItems||[]).map(k=>esc((itemOf(i,k)||{code:k}).code)).join(", ")}</div>`:`<div class="small" style="color:var(--ok)"><b>All items OK.</b></div>`}
     ${i.reinspect?`<div class="small muted">Re-inspection of a previously checked unit.</div>`:""}</section>
   ${rows}
@@ -833,14 +845,23 @@ function dashView(){
     <div class="kpi hold"><span class="lbl">Quarantine</span><span class="v">${quar}</span><span class="s">${pct(quar,list.length)} of checked</span></div>
     <div class="kpi ng"><span class="lbl">Total reject</span><span class="v">${rej}</span><span class="s">${pct(rej,list.length)} of checked</span></div>
     <div class="kpi ng"><span class="lbl">Reject rate</span><span class="v">${pct(rej,incoming)}</span><span class="s">of total incoming batch</span></div>
+    <div class="kpi"><span class="lbl">Avg checking time</span><span class="v" style="font-size:26px">${fmtDur(avg(list.map(i=>+i.checkSec).filter(x=>x>0)))}</span><span class="s">scan pile ID → submit</span></div>
+    <div class="kpi"><span class="lbl">Avg verify time</span><span class="v" style="font-size:26px">${fmtDur(avg(list.filter(i=>i.verified).map(i=>+i.verifySec).filter(x=>x>0)))}</span><span class="s">submit → verified</span></div>
     <div class="kpi"><span class="lbl">Awaiting verifier</span><span class="v">${pend}</span><span class="s">status not set yet</span></div>
   </div>
   <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><div class="spread"><h3>Checked by day</h3><div class="legend"><span><i style="background:var(--ok)"></i>FG</span><span><i style="background:var(--hold)"></i>Quarantine</span><span><i style="background:var(--ng)"></i>Reject</span><span><i style="background:var(--line)"></i>Awaiting</span></div></div>${dayChart(days,dayMap)}</section>
   <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>By batch</h3><p class="small muted" style="margin:0">Batch totals cover every inspection in the batch, whatever the date filter.</p>
    ${byBatch.length?`<div class="tbl-wrap"><table><thead><tr><th>Batch</th><th>Received</th><th class="num">Incoming</th><th class="num">Checked</th><th class="num">Progress</th><th class="num">FG</th><th class="num">Quarantine</th><th class="num">Reject</th><th class="num">Awaiting</th><th class="num">Reject % incoming</th><th class="num">Reject % checked</th></tr></thead><tbody>${byBatch.map(r=>`<tr><td><b>${esc(r.b.batchNo)}</b></td><td>${dmy(r.b.receivedDate)}</td><td class="num">${r.b.incomingQty||0}</td><td class="num">${r.checked}</td><td class="num">${pct(r.checked,+r.b.incomingQty)}</td><td class="num" style="color:var(--ok)">${r.pass}</td><td class="num" style="color:var(--hold)">${r.quar}</td><td class="num" style="color:var(--ng)">${r.rej}</td><td class="num">${r.pend}</td><td class="num"><b>${pct(r.rej,+r.b.incomingQty)}</b></td><td class="num">${pct(r.rej,r.checked)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No batch has inspections in this date range.</div>`}</section>
+  ${timeTables(list)}
   <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>Type of reject (NG items)</h3>
    ${types.length?`<p class="small muted" style="margin:0">One unit can fail more than one item. Share is of all ${withNg.length} unit(s) with NG.</p>${types.map(([lab,n])=>{const [code,text]=lab.split("|");return `<div class="hbar"><span><span class="code">${esc(code)}</span> ${esc(text)}</span><span class="track"><i style="width:${n/tmax*100}%"></i></span><span class="num" style="text-align:right"><b>${n}</b> · ${pct(n,withNg.length)}</span></div>`}).join("")}
    <div class="small muted" style="margin-top:6px">By area: ${Object.entries(grp).sort((a,b)=>b[1]-a[1]).map(([g,n])=>`${esc(g)} <b>${n}</b>`).join(" · ")}</div>`:`<div class="empty">No NG items in this range.</div>`}</section>`}
+function timeTables(list){
+  const by=(arr,key,nameKey,secKey)=>{const m={};arr.forEach(i=>{const k=i[key];if(!k)return;const r=m[k]||(m[k]={name:i[nameKey]||k,n:0,secs:[]});r.n++;const v=+i[secKey];if(v>0)r.secs.push(v)});return Object.values(m).sort((a,b)=>b.n-a.n)};
+  const tbl=(rows,title,lab)=>rows.length?`<div class="tbl-wrap"><table><thead><tr><th>${title}</th><th class="num">${lab}</th><th class="num">Average</th><th class="num">Fastest</th><th class="num">Slowest</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td class="num">${r.n}</td><td class="num"><b>${fmtDur(avg(r.secs))}</b></td><td class="num">${r.secs.length?fmtDur(Math.min(...r.secs)):"–"}</td><td class="num">${r.secs.length?fmtDur(Math.max(...r.secs)):"–"}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No data in this range.</div>`;
+  const note=S.backendV<4&&!DEMO?`<div class="warn small">Times are recorded after Code.gs is updated to the latest version.</div>`:"";
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:10px"><h3>Checking time by staff</h3><p class="small muted" style="margin:0">From scanning the charging pile ID to submitting the checklist.</p>${note}${tbl(by(list,"checkedBy","checkedName","checkSec"),"Checker","Units")}
+   <h3 style="margin-top:8px">Verify time by verifier</h3><p class="small muted" style="margin:0">From the checker submitting to the verifier signing.</p>${tbl(by(list.filter(i=>i.verified),"verifiedBy","verifiedName","verifySec"),"Verifier","Verified")}</section>`}
 function dayChart(days,map){
   if(!days.length)return `<div class="empty">No inspections in this date range.</div>`;
   const W=900,H=220,pl=34,pb=26,pt=10,cw=(W-pl-8)/days.length,tot=d=>{const m=map[d]||{};return (m.pass||0)+(m.quar||0)+(m.rej||0)+(m.pend||0)},max=Math.max(1,...days.map(tot));
@@ -855,8 +876,8 @@ function dayChart(days,map){
 
 function recTable(list,opts={}){
   if(!list.length)return `<div class="empty">${opts.empty||"No inspections match these filters."}</div>`;
-  return `<div class="tbl-wrap"><table><thead><tr>${opts.select?'<th><input type="checkbox" data-act="selall" aria-label="Select all"></th>':""}<th>Checked</th><th>Pile ID</th><th>Batch</th><th>Result</th><th>NG</th><th>Checked by</th><th>Verification</th><th></th></tr></thead><tbody>`+
-   list.map(i=>`<tr class="click" data-act="open" data-id="${esc(i.id)}">${opts.select?`<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${esc(i.id)}" ${S.sel.has(i.id)?"checked":""} aria-label="Select ${esc(i.pileId)}"></td>`:""}<td>${dt(i.checkedAt)}</td><td class="mono">${esc(i.pileId)}${i.reinspect?' <span class="small muted">(re)</span>':""}</td><td>${esc(i.batchNo)}</td><td>${statusPill(i)}</td><td class="num">${(i.ngItems||[]).length||""}</td><td>${esc(i.checkedName)}</td><td>${verPill(i)}${i.verified?`<div class="small muted">${esc(i.verifiedName)}</div>`:""}</td><td><button type="button" class="btn sm" data-act="open" data-id="${esc(i.id)}">View</button></td></tr>`).join("")+`</tbody></table></div>`}
+  return `<div class="tbl-wrap"><table><thead><tr>${opts.select?'<th><input type="checkbox" data-act="selall" aria-label="Select all"></th>':""}<th>Checked</th><th>Pile ID</th><th>Batch</th><th>Result</th><th>NG</th><th>Checked by</th><th class="num">Check time</th><th>Verification</th><th class="num">Verify time</th><th></th></tr></thead><tbody>`+
+   list.map(i=>`<tr class="click" data-act="open" data-id="${esc(i.id)}">${opts.select?`<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${esc(i.id)}" ${S.sel.has(i.id)?"checked":""} aria-label="Select ${esc(i.pileId)}"></td>`:""}<td>${dt(i.checkedAt)}</td><td class="mono">${esc(i.pileId)}${i.reinspect?' <span class="small muted">(re)</span>':""}</td><td>${esc(i.batchNo)}</td><td>${statusPill(i)}</td><td class="num">${(i.ngItems||[]).length||""}</td><td>${esc(i.checkedName)}</td><td class="num">${fmtDur(i.checkSec)}</td><td>${verPill(i)}${i.verified?`<div class="small muted">${esc(i.verifiedName)}</div>`:""}</td><td class="num">${i.verified?fmtDur(i.verifySec):`<span class="small" style="color:var(--hold)">waiting ${fmtDur(waitSec(i))}</span>`}</td><td><button type="button" class="btn sm" data-act="open" data-id="${esc(i.id)}">View</button></td></tr>`).join("")+`</tbody></table></div>`}
 function recordsView(mine){
   let list=applyFilt(S.insp);if(mine)list=list.filter(i=>i.checkedBy===me().username);
   const csv=(me().role==="admin"||me().role==="viewer")?`<button class="btn sm" type="button" data-act="csv">Export CSV</button>`:"";
@@ -928,7 +949,7 @@ async function makePdf(i){
   d.setTextColor(20);d.setFont("helvetica","bold");d.setFontSize(16);d.text("AC CHARGER INSPECTION REPORT",TX,21);
   y=Math.max(30,8+LH+6);
   const ct=i.checkedAt?new Date(i.checkedAt):null,hhmm=ct?String(ct.getHours()).padStart(2,"0")+":"+String(ct.getMinutes()).padStart(2,"0"):"-";
-  d.setFontSize(9);const meta=[["Product",i.product],["Model",i.model],["Charging pile ID",i.pileId],["Batch",i.batchNo],["Decorative panel","Pattern "+i.panel],["Inspection date",dmy(i.day)+"   Time: "+hhmm],["Status",statusText(i.status)],["Verification",i.verified?"Verified":"Pending"]];
+  d.setFontSize(9);const meta=[["Product",i.product],["Model",i.model],["Charging pile ID",i.pileId],["Batch",i.batchNo],["Decorative panel","Pattern "+i.panel],["Inspection date",dmy(i.day)+"   Time: "+hhmm],["Status",statusText(i.status)],["Verification",i.verified?"Verified":"Pending"],["Checking time",fmtDur(i.checkSec)],["Verify time",i.verified?fmtDur(i.verifySec):"–"]];
   meta.forEach((m,ix)=>{const x=ix%2?105:L;if(ix%2===0&&ix)y+=6;d.setFont("helvetica","bold");d.setTextColor(93,107,122);d.text(m[0].toUpperCase(),x,y);d.setFont("helvetica","normal");
     if(m[0]==="Status"){if(i.status==="PASS")d.setTextColor(31,122,74);else if(i.status==="REJECT")d.setTextColor(179,38,30);else if(i.status==="QUARANTINE"||i.status==="ON HOLD")d.setTextColor(163,90,0);else d.setTextColor(93,107,122);d.setFont("helvetica","bold")}else d.setTextColor(20);
     d.text(String(m[1]||"-"),x+38,y)});
@@ -971,8 +992,8 @@ async function makePdf(i){
 async function exportCsv(){
   const list=applyFilt(S.insp,S.tab!=="dash");
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version",...ITEMS.map(i=>i.code)];
-  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
+  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version","Check started","Checking time (sec)","Verify time (sec)",...ITEMS.map(i=>i.code)];
+  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",i.checkStartedAt?dt(i.checkStartedAt):"",i.checkSec??"",i.verifySec??"",...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
   const csv="﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`QC_records_${S.filt.from||"all"}_${S.filt.to||"all"}.csv`;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("CSV downloaded")
 }
@@ -1026,7 +1047,7 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
-  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="nameplateId")S.form.npAuto=false;if(t.dataset.f==="pileId")syncNameplate(t.value.trim().toUpperCase());if(["pileId","nameplateId","boxId","cctvId"].includes(t.dataset.f))updateFormUI()}
+  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="nameplateId")S.form.npAuto=false;if(t.dataset.f==="pileId"){syncNameplate(t.value.trim().toUpperCase());startTimer(t.value.trim().toUpperCase())}if(["pileId","nameplateId","boxId","cctvId"].includes(t.dataset.f))updateFormUI()}
   if(t.dataset.rem&&S.form){S.form.rem[t.dataset.rem]=t.value;saveDraft();updateFormUI()}
 });
 document.addEventListener("change",e=>{
