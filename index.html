@@ -135,7 +135,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--soft)}
 .empty{padding:28px 12px;text-align:center;color:var(--muted)}
 
 /* dashboard */
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .kpi{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .kpi .v{font-family:var(--f-display);font-weight:700;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums}
 .kpi .s{font-size:12px;color:var(--muted)}
@@ -249,6 +249,7 @@ function statusPill(i){const s=STATUS_INFO[i.status];return s?`<span class="stat
 function fmtDur(sec){sec=Math.round(Number(sec));if(!(sec>=0))return"–";const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return h?`${h}h ${String(m).padStart(2,"0")}m`:`${m}m ${String(x).padStart(2,"0")}s`}
 function clock(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return (h?h+":"+String(m).padStart(2,"0"):String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0")}
 function waitSec(i){return i.checkedAt?(Date.now()-new Date(i.checkedAt).getTime())/1000:NaN}
+function totalSec(i){const c=+i.checkSec,v=+i.verifySec;return i.verified&&c>0&&v>=0&&i.verifySec!==""?c+v:NaN}
 function avg(a){a=a.filter(x=>x>=0);return a.length?a.reduce((p,c)=>p+c,0)/a.length:NaN}
 function statusText(s){return s==="PASS"?"PASS (FG)":s==="QUARANTINE"?"QUARANTINE":s==="REJECT"?"REJECT":s==="ON HOLD"?"ON HOLD":"Awaiting verifier"}
 function isQuar(i){return i.status==="QUARANTINE"||i.status==="ON HOLD"}
@@ -619,7 +620,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.6";
+const APP_VERSION="v2.7";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -806,7 +807,8 @@ function detailView(){
       <div class="field"><span class="lbl">Decorative panel</span><div>Pattern ${esc(i.panel)}</div></div>
       <div class="field"><span class="lbl">Inspection date &amp; time</span><div>${dt(i.checkedAt)}</div></div>
       <div class="field"><span class="lbl">Checking time</span><div class="mono">${fmtDur(i.checkSec)}</div></div>
-      <div class="field"><span class="lbl">Verify time</span><div class="mono">${i.verified?fmtDur(i.verifySec):`<span style="color:var(--hold)">waiting ${fmtDur(waitSec(i))}</span>`}</div></div></div>
+      <div class="field"><span class="lbl">Verify time</span><div class="mono">${i.verified?fmtDur(i.verifySec):`<span style="color:var(--hold)">waiting ${fmtDur(waitSec(i))}</span>`}</div></div>
+      <div class="field"><span class="lbl">Total time (check + verify)</span><div class="mono"><b>${fmtDur(totalSec(i))}</b></div></div></div>
     ${hasNg?`<div class="warn">${(i.ngItems||[]).length} NG item(s): ${(i.ngItems||[]).map(k=>esc((itemOf(i,k)||{code:k}).code)).join(", ")}</div>`:`<div class="small" style="color:var(--ok)"><b>All items OK.</b></div>`}
     ${i.reinspect?`<div class="small muted">Re-inspection of a previously checked unit.</div>`:""}</section>
   ${rows}
@@ -847,6 +849,7 @@ function dashView(){
     <div class="kpi ng"><span class="lbl">Reject rate</span><span class="v">${pct(rej,incoming)}</span><span class="s">of total incoming batch</span></div>
     <div class="kpi"><span class="lbl">Avg checking time</span><span class="v" style="font-size:26px">${fmtDur(avg(list.map(i=>+i.checkSec).filter(x=>x>0)))}</span><span class="s">scan pile ID → submit</span></div>
     <div class="kpi"><span class="lbl">Avg verify time</span><span class="v" style="font-size:26px">${fmtDur(avg(list.filter(i=>i.verified).map(i=>+i.verifySec).filter(x=>x>0)))}</span><span class="s">submit → verified</span></div>
+    <div class="kpi"><span class="lbl">Avg total time / unit</span><span class="v" style="font-size:26px">${fmtDur(avg(list.map(totalSec)))}</span><span class="s">check + verify</span></div>
     <div class="kpi"><span class="lbl">Awaiting verifier</span><span class="v">${pend}</span><span class="s">status not set yet</span></div>
   </div>
   <section class="sheet" style="display:flex;flex-direction:column;gap:10px"><div class="spread"><h3>Checked by day</h3><div class="legend"><span><i style="background:var(--ok)"></i>FG</span><span><i style="background:var(--hold)"></i>Quarantine</span><span><i style="background:var(--ng)"></i>Reject</span><span><i style="background:var(--line)"></i>Awaiting</span></div></div>${dayChart(days,dayMap)}</section>
@@ -876,8 +879,8 @@ function dayChart(days,map){
 
 function recTable(list,opts={}){
   if(!list.length)return `<div class="empty">${opts.empty||"No inspections match these filters."}</div>`;
-  return `<div class="tbl-wrap"><table><thead><tr>${opts.select?'<th><input type="checkbox" data-act="selall" aria-label="Select all"></th>':""}<th>Checked</th><th>Pile ID</th><th>Batch</th><th>Result</th><th>NG</th><th>Checked by</th><th class="num">Check time</th><th>Verification</th><th class="num">Verify time</th><th></th></tr></thead><tbody>`+
-   list.map(i=>`<tr class="click" data-act="open" data-id="${esc(i.id)}">${opts.select?`<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${esc(i.id)}" ${S.sel.has(i.id)?"checked":""} aria-label="Select ${esc(i.pileId)}"></td>`:""}<td>${dt(i.checkedAt)}</td><td class="mono">${esc(i.pileId)}${i.reinspect?' <span class="small muted">(re)</span>':""}</td><td>${esc(i.batchNo)}</td><td>${statusPill(i)}</td><td class="num">${(i.ngItems||[]).length||""}</td><td>${esc(i.checkedName)}</td><td class="num">${fmtDur(i.checkSec)}</td><td>${verPill(i)}${i.verified?`<div class="small muted">${esc(i.verifiedName)}</div>`:""}</td><td class="num">${i.verified?fmtDur(i.verifySec):`<span class="small" style="color:var(--hold)">waiting ${fmtDur(waitSec(i))}</span>`}</td><td><button type="button" class="btn sm" data-act="open" data-id="${esc(i.id)}">View</button></td></tr>`).join("")+`</tbody></table></div>`}
+  return `<div class="tbl-wrap"><table><thead><tr>${opts.select?'<th><input type="checkbox" data-act="selall" aria-label="Select all"></th>':""}<th>Checked</th><th>Pile ID</th><th>Batch</th><th>Result</th><th>NG</th><th>Checked by</th><th class="num">Check time</th><th>Verification</th><th class="num">Verify time</th><th class="num">Total time</th><th></th></tr></thead><tbody>`+
+   list.map(i=>`<tr class="click" data-act="open" data-id="${esc(i.id)}">${opts.select?`<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${esc(i.id)}" ${S.sel.has(i.id)?"checked":""} aria-label="Select ${esc(i.pileId)}"></td>`:""}<td>${dt(i.checkedAt)}</td><td class="mono">${esc(i.pileId)}${i.reinspect?' <span class="small muted">(re)</span>':""}</td><td>${esc(i.batchNo)}</td><td>${statusPill(i)}</td><td class="num">${(i.ngItems||[]).length||""}</td><td>${esc(i.checkedName)}</td><td class="num">${fmtDur(i.checkSec)}</td><td>${verPill(i)}${i.verified?`<div class="small muted">${esc(i.verifiedName)}</div>`:""}</td><td class="num">${i.verified?fmtDur(i.verifySec):`<span class="small" style="color:var(--hold)">waiting ${fmtDur(waitSec(i))}</span>`}</td><td class="num"><b>${fmtDur(totalSec(i))}</b></td><td><button type="button" class="btn sm" data-act="open" data-id="${esc(i.id)}">View</button></td></tr>`).join("")+`</tbody></table></div>`}
 function recordsView(mine){
   let list=applyFilt(S.insp);if(mine)list=list.filter(i=>i.checkedBy===me().username);
   const csv=(me().role==="admin"||me().role==="viewer")?`<button class="btn sm" type="button" data-act="csv">Export CSV</button>`:"";
@@ -949,7 +952,7 @@ async function makePdf(i){
   d.setTextColor(20);d.setFont("helvetica","bold");d.setFontSize(16);d.text("AC CHARGER INSPECTION REPORT",TX,21);
   y=Math.max(30,8+LH+6);
   const ct=i.checkedAt?new Date(i.checkedAt):null,hhmm=ct?String(ct.getHours()).padStart(2,"0")+":"+String(ct.getMinutes()).padStart(2,"0"):"-";
-  d.setFontSize(9);const meta=[["Product",i.product],["Model",i.model],["Charging pile ID",i.pileId],["Batch",i.batchNo],["Decorative panel","Pattern "+i.panel],["Inspection date",dmy(i.day)+"   Time: "+hhmm],["Status",statusText(i.status)],["Verification",i.verified?"Verified":"Pending"],["Checking time",fmtDur(i.checkSec)],["Verify time",i.verified?fmtDur(i.verifySec):"–"]];
+  d.setFontSize(9);const meta=[["Product",i.product],["Model",i.model],["Charging pile ID",i.pileId],["Batch",i.batchNo],["Decorative panel","Pattern "+i.panel],["Inspection date",dmy(i.day)+"   Time: "+hhmm],["Status",statusText(i.status)],["Verification",i.verified?"Verified":"Pending"],["Checking time",fmtDur(i.checkSec)],["Verify time",i.verified?fmtDur(i.verifySec):"–"],["Total time",fmtDur(totalSec(i))]];
   meta.forEach((m,ix)=>{const x=ix%2?105:L;if(ix%2===0&&ix)y+=6;d.setFont("helvetica","bold");d.setTextColor(93,107,122);d.text(m[0].toUpperCase(),x,y);d.setFont("helvetica","normal");
     if(m[0]==="Status"){if(i.status==="PASS")d.setTextColor(31,122,74);else if(i.status==="REJECT")d.setTextColor(179,38,30);else if(i.status==="QUARANTINE"||i.status==="ON HOLD")d.setTextColor(163,90,0);else d.setTextColor(93,107,122);d.setFont("helvetica","bold")}else d.setTextColor(20);
     d.text(String(m[1]||"-"),x+38,y)});
@@ -992,8 +995,8 @@ async function makePdf(i){
 async function exportCsv(){
   const list=applyFilt(S.insp,S.tab!=="dash");
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version","Check started","Checking time (sec)","Verify time (sec)",...ITEMS.map(i=>i.code)];
-  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",i.checkStartedAt?dt(i.checkStartedAt):"",i.checkSec??"",i.verifySec??"",...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
+  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version","Check started","Checking time (sec)","Verify time (sec)","Total time (sec)",...ITEMS.map(i=>i.code)];
+  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",i.checkStartedAt?dt(i.checkStartedAt):"",i.checkSec??"",i.verifySec??"",isNaN(totalSec(i))?"":totalSec(i),...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
   const csv="﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`QC_records_${S.filt.from||"all"}_${S.filt.to||"all"}.csv`;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("CSV downloaded")
 }
