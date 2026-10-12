@@ -589,7 +589,7 @@ function updateFormUI(){
     if(needsRework(last)&&!f.reworkOf){f.reworkOf=last.id;f.reinspect=true;saveDraft()}
     $("#dup").innerHTML=`<div class="warn" style="display:flex;flex-direction:column;gap:6px"><div><b>${needsRework(last)?"Rework re-inspection":"Unit inspected before"}</b> – last inspected ${dt(last.checkedAt)} · <b>${esc(statusText(last.status))}</b>${prev.length>1?` · ${prev.length} inspections so far`:""}</div>
       ${(last.ngItems||[]).length?`<div><b class="small">Previous NG items to re-check:</b>${ngSummary(last)}</div>`:""}
-      <label style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:14px;color:inherit"><input type="checkbox" id="f-reinspect" data-f="reinspect" ${f.reinspect?"checked":""}> This is a re-inspection${needsRework(last)?" after rework":""}</label></div>`}
+      <label style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:14px;color:inherit"><input type="checkbox" id="f-reinspect" data-f="reinspect" ${f.reinspect?"checked":""}> This is a re-inspection${needsRework(last)?" after rework":""}</label>${f.reworkOf?`<div class="row"><button class="btn sm" type="button" data-act="cancelrework">✕ Cancel · back to Find unit</button></div>`:""}</div>`}
   else{$("#dup").innerHTML="";if(f.reworkOf){f.reworkOf="";saveDraft()}}
 }
 function setScanValue(target,v){
@@ -661,7 +661,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v3.3";
+const APP_VERSION="v3.4";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -870,8 +870,8 @@ function detailView(){
 /* ---------- find unit / rework ---------- */
 function findView(){
   const q=S.findId||"",hist=q?unitHistory(q):[],rw=reworkList();
-  const histHtml=!q?"":!hist.length?`<div class="empty">No inspection found for <span class="mono">${esc(q)}</span>.</div>`:
-    `<div class="spread"><h3 class="mono" style="font-family:var(--f-mono)">${esc(hist[0].pileId)}</h3><div class="row">${statusPill(hist[0])}${needsRework(hist[0])?'<span class="status st-hold">NEEDS REWORK</span>':""}</div></div>
+  const histHtml=!q?"":!hist.length?`<div class="row"><button class="btn sm" type="button" data-act="findclear">← Back · scan another unit</button></div><div class="empty">No inspection found for <span class="mono">${esc(q)}</span>.</div>`:
+    `<div class="row"><button class="btn sm" type="button" data-act="findclear">← Back · scan another unit</button></div><div class="spread"><h3 class="mono" style="font-family:var(--f-mono)">${esc(hist[0].pileId)}</h3><div class="row">${statusPill(hist[0])}${needsRework(hist[0])?'<span class="status st-hold">NEEDS REWORK</span>':""}</div></div>
      <div class="small muted">${hist.length} inspection(s) for this unit, newest first.</div>
      ${hist.map((i,ix)=>`<div class="histcard ${needsRework(i)?"bad":i.status==="PASS"?"good":""}">
         <div class="spread"><div><b>${ix===hist.length-1?"First inspection":"Re-inspection"}</b> · ${dt(i.checkedAt)} · ${esc(i.batchNo)}</div><div class="row">${statusPill(i)}</div></div>
@@ -1174,6 +1174,8 @@ document.addEventListener("click",async e=>{
   switch(a){
     case"tab":S.tab=t.dataset.tab;S.detail=null;S.acctEdit=null;render();break;
     case"logout":logout();break;
+    case"findclear":S.findId="";$("#view").innerHTML=viewHtml();afterRender();window.scrollTo({top:0});setTimeout(()=>$("#f-findId")?.focus(),50);break;
+    case"cancelrework":{const k=f?.batchId||"";S.form=blankForm();S.form.batchId=k;saveDraft();S.tab="find";S.detail=null;render();window.scrollTo({top:0});break}
     case"findpile":S.findId=t.dataset.pile;S.tab="find";S.detail=null;render();window.scrollTo({top:0});break;
     case"startrework":{const pile=t.dataset.pile;const keep=S.form?.batchId||"";S.form=blankForm();S.form.batchId=keep;S.form.pileMethod="key";S.tab="new";S.detail=null;saveDraft();render();setScanValue("pileId",pile);window.scrollTo({top:0});break}
     case"stafflogin":e.preventDefault();location.href=t.getAttribute("href");setTimeout(()=>location.reload(),50);break;
