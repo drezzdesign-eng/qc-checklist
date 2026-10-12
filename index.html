@@ -107,6 +107,8 @@ label.btn.primary{color:var(--accent-ink)}
 .timer{font-family:var(--f-mono);font-weight:500;font-size:16px;color:var(--accent);background:var(--accent-soft);padding:3px 10px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .timer.idle{color:var(--muted);background:var(--soft);white-space:normal;font-family:var(--f-body);font-size:13px}
 .sealna{display:flex;align-items:center;gap:8px;font-family:var(--f-body);font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--hold);background:var(--hold-bg);padding:8px 10px;border-radius:4px;flex:1 1 100%}
+.item.is-na .res button{opacity:.35}
+.sealna input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}
 .rbadge.na{background:var(--soft);color:var(--muted);border:1px dashed var(--line)}
 .histcard{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:2px;background:var(--paper)}
 .histcard.bad{border-left-color:var(--ng)}.histcard.good{border-left-color:var(--ok)}
@@ -243,8 +245,10 @@ function itemOf(i,k){const c=Number(i&&i.cl);return (c>=3?ITEM:c===2?ITEM_V2:ITE
 const SCAN_LABEL={findId:"Charging pile ID",warrantySeal:"Warranty seal no.",pileId:"Charging pile ID",nameplateId:"Nameplate ID",boxId:"Packaging box ID",cctvId:"CCTV ID"};
 function normId(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
 function idsMatch(a,b){a=normId(a);b=normId(b);if(!a||!b)return false;if(a===b)return true;return Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))}
+const NOCCTV_DEP=["B-1l","B-2e"],AUTO_REM_NOCCTV="No CCTV QR sticker on unit";
 function applyAutos(f){
   ITEMS.forEach(it=>{const o=it.opt,k=it.key;
+    if(o.scan==="cctvId"&&o.auto){if(f.noCctv){f.cctvId="";f.res[k]="NG";if(!(f.rem[k]||"").trim()||f.rem[k]===AUTO_REM_CCTV)f.rem[k]=AUTO_REM_NOCCTV;return}if(f.rem[k]===AUTO_REM_NOCCTV)delete f.rem[k]}
     if(o.input){const others=Object.keys(f.res).some(x=>x!==k&&f.res[x]==="NG");if(!others)f.sealNA=false;if(f.sealNA)f.res[k]="NA";else if((f[o.input]||"").trim())f.res[k]="OK";else delete f.res[k]}
     else if(o.led){if(f[o.led])f.res[k]=f[o.led]==="Green blinking"?"OK":"NG";else delete f.res[k]}
     else if(o.scan&&o.match){const v=f[o.scan];const auto=/^ID mismatch: /.test(f.rem[k]||"");if(v&&f.pileId){const okm=idsMatch(v,f.pileId);f.res[k]=okm?"OK":"NG";if(!okm&&(!(f.rem[k]||"").trim()||auto))f.rem[k]="ID mismatch: "+v;if(okm&&auto)delete f.rem[k]}else{delete f.res[k];if(auto)delete f.rem[k]}}
@@ -252,6 +256,7 @@ function applyAutos(f){
       else if(o.scan!=="cctvId"||cctvValid(v)){f.res[k]="OK";if(auto)delete f.rem[k]}
       else{f.res[k]="NG";if(!(f.rem[k]||"").trim())f.rem[k]=AUTO_REM_CCTV}}
   });
+  NOCCTV_DEP.forEach(k=>{if(f.noCctv)f.res[k]="NA";else if(f.res[k]==="NA")delete f.res[k]});
 }
 function parseCctv(v){const o={};String(v||"").replace(/[{}]/g,"").split(/[,;\n]/).forEach(p=>{const m=p.match(/^\s*([A-Za-z]{2,4})\s*[:=]\s*(.+?)\s*$/);if(m)o[m[1].toUpperCase()]=m[2]});return o}
 const CCTV_KEYS=["SN","DT","SC"];
@@ -511,7 +516,7 @@ function setupView(){
 
 /* ---------- staff: new inspection ---------- */
 
-function blankForm(){return{warrantySeal:"",sealNA:false,reworkOf:"",batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},nameplateId:"",boxId:"",cctvId:"",cctvPw:"",led:"",led2:"",overall:"",reinspect:false}}
+function blankForm(){return{noCctv:false,warrantySeal:"",sealNA:false,reworkOf:"",batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},nameplateId:"",boxId:"",cctvId:"",cctvPw:"",led:"",led2:"",overall:"",reinspect:false}}
 function formView(){
   const f=S.form,s=me();
   const sections=SECTIONS.map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
@@ -554,7 +559,7 @@ function itemExtra(k,o,f){
   o=o||{};
   if(o.led)return `<select class="led-sel" id="f-${o.led}" data-f="${o.led}" aria-label="CCTV indication light"><option value="">Select light status…</option>${LED_OPTS.map(x=>`<option ${f[o.led]===x?"selected":""}>${x}</option>`).join("")}</select>`;
   if(o.input)return `<input type="text" class="mono" id="f-${o.input}" data-f="${o.input}" value="${esc(f[o.input]||"")}" placeholder="Key in warranty seal number (required)" autocomplete="off" autocapitalize="characters" style="flex:1 1 100%" aria-label="Warranty seal number"><label class="sealna" id="sealna-wrap" hidden><input type="checkbox" id="f-sealNA" data-f="sealNA" ${f.sealNA?"checked":""}> Seal not applied – major defect</label>`;
-  if(o.scan)return `<div style="flex:1 1 100%;min-width:0">${scanBox(o.scan,f)}${o.scan==="cctvId"?`<div id="cctv-parts">${cctvBoxHtml(f.cctvId)}</div>`:""}</div>`;
+  if(o.scan)return `<div style="flex:1 1 100%;min-width:0">${scanBox(o.scan,f)}${o.scan==="cctvId"?`<div id="cctv-parts">${cctvBoxHtml(f.cctvId)}</div><label class="sealna" style="margin-top:6px"><input type="checkbox" id="f-noCctv" data-f="noCctv" ${f.noCctv?"checked":""}> No CCTV QR sticker on this unit</label>`:""}</div>`;
   return "";
 }
 function updateFormUI(){
@@ -562,7 +567,8 @@ function updateFormUI(){
   applyAutos(f);
   let ok=0,ng=0;
   document.querySelectorAll(".item[data-key]").forEach(r=>{const k=r.dataset.key,v=f.res[k];
-    r.classList.toggle("is-ok",v==="OK");r.classList.toggle("is-ng",v==="NG");
+    r.classList.toggle("is-ok",v==="OK");r.classList.toggle("is-ng",v==="NG");r.classList.toggle("is-na",v==="NA");
+    if(NOCCTV_DEP.includes(k))r.querySelectorAll("[data-act=res]").forEach(b=>b.disabled=!!f.noCctv);
     r.classList.toggle("need-rem",v==="NG"&&!(f.rem[k]||"").trim());
     const ri=r.querySelector("[data-rem]");if(ri){ri.placeholder=v==="NG"?"Remark (required for NG)":"Remark";if(document.activeElement!==ri&&(f.rem[k]||"")!==ri.value)ri.value=f.rem[k]||""}
     r.querySelector(".ok").setAttribute("aria-pressed",v==="OK");r.querySelector(".ng").setAttribute("aria-pressed",v==="NG");
@@ -572,6 +578,7 @@ function updateFormUI(){
     h.innerHTML=!v?"":!f.pileId?"Scan the charging pile ID first to compare.":(t==="nameplateId"&&f.npAuto)?'<b style="color:var(--ok)">Filled from charging pile ID.</b> Scan the nameplate QR if it is different.':idsMatch(v,f.pileId)?'<b style="color:var(--ok)">Matches charging pile ID</b>':'<b style="color:var(--ng)">Does not match charging pile ID</b>'});
   ["pileId","nameplateId","boxId","cctvId"].forEach(t=>{const el=$("#f-"+t);if(el)el.classList.toggle("has",!!(f[t]||"").trim())});
   const cp=$("#cctv-parts");if(cp)cp.innerHTML=cctvBoxHtml(f.cctvId);
+  {const ci=$("#f-cctvId");if(ci){ci.disabled=!!f.noCctv;if(f.noCctv)ci.value="";ci.placeholder=f.noCctv?"No sticker (NG)":"Scan or paste CCTV ID";ci.closest(".scanbox")?.querySelectorAll("button,label.btn,input[type=file]").forEach(b=>{b.disabled=!!f.noCctv;b.style.opacity=f.noCctv?.4:"";b.style.pointerEvents=f.noCctv?"none":""})}const nc=$("#f-noCctv");if(nc)nc.checked=!!f.noCctv}
   const done=ok+ng,t=ITEMS.length;
   $("#f-bar").style.width=(done/t*100)+"%";
   $("#f-counts").innerHTML=`<b>${done}</b> / ${t} checked · <b>${ok}</b> OK · <b style="color:var(--ng)">${ng}</b> NG`;
@@ -654,7 +661,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v3.1";
+const APP_VERSION="v3.2";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -1184,7 +1191,7 @@ document.addEventListener("click",async e=>{
     case"livescan":startLive(t.dataset.target);break;
     case"closescan":stopLive();break;
     case"snapscan":snapLive();break;
-    case"res":if(t.disabled||isAuto(ITEM[t.dataset.key]?.opt))break;f.res[t.dataset.key]=f.res[t.dataset.key]===t.dataset.v?undefined:t.dataset.v;if(!f.res[t.dataset.key])delete f.res[t.dataset.key];saveDraft();updateFormUI();break;
+    case"res":if(t.disabled||isAuto(ITEM[t.dataset.key]?.opt)||(f.noCctv&&NOCCTV_DEP.includes(t.dataset.key)))break;f.res[t.dataset.key]=f.res[t.dataset.key]===t.dataset.v?undefined:t.dataset.v;if(!f.res[t.dataset.key])delete f.res[t.dataset.key];saveDraft();updateFormUI();break;
     case"allok":t.dataset.keys.split(",").forEach(k=>f.res[k]="OK");saveDraft();updateFormUI();break;
     case"panel":f.panel=f.panel===t.dataset.v?"":t.dataset.v;saveDraft();updateFormUI();break;
     case"clearform":{const k=f.batchId;S.form=blankForm();S.form.batchId=k;saveDraft();$("#view").innerHTML=viewHtml();afterRender();toast("Form cleared");break}
@@ -1211,7 +1218,7 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
-  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="nameplateId")S.form.npAuto=false;if(t.dataset.f==="pileId"){syncNameplate(t.value.trim().toUpperCase());startTimer(t.value.trim().toUpperCase())}if(["pileId","nameplateId","boxId","cctvId","warrantySeal","sealNA","reinspect"].includes(t.dataset.f))updateFormUI()}
+  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="nameplateId")S.form.npAuto=false;if(t.dataset.f==="pileId"){syncNameplate(t.value.trim().toUpperCase());startTimer(t.value.trim().toUpperCase())}if(["pileId","nameplateId","boxId","cctvId","warrantySeal","sealNA","noCctv","reinspect"].includes(t.dataset.f))updateFormUI()}
   if(t.dataset.rem&&S.form){S.form.rem[t.dataset.rem]=t.value;saveDraft();updateFormUI()}
 });
 document.addEventListener("change",e=>{
