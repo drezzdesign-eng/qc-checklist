@@ -654,7 +654,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v3.0";
+const APP_VERSION="v3.1";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -896,7 +896,7 @@ function dashView(){
   const withNg=list.filter(i=>(i.ngItems||[]).length);
   const typ={},grp={};withNg.forEach(i=>(i.ngItems||[]).forEach(k=>{const it=itemOf(i,k)||{code:k,text:k,group:k};const lab=it.code+"|"+it.text;typ[lab]=(typ[lab]||0)+1;grp[it.group]=(grp[it.group]||0)+1}));
   const types=Object.entries(typ).sort((a,b)=>b[1]-a[1]);const tmax=types[0]?.[1]||1;
-  return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><div class="spread"><h2>QC dashboard</h2><button class="btn sm" type="button" data-act="csv">Export CSV</button></div>${filterBar(false)}</section>
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><div class="spread"><h2>QC dashboard</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" type="button" data-act="sumpdf">Summary report (PDF)</button><button class="btn sm" type="button" data-act="csv">Export CSV</button></div></div>${filterBar(false)}</section>
   <div class="kpis">
     <div class="kpi"><span class="lbl">Total checked</span><span class="v">${list.length}</span><span class="s">${incoming?`of ${incoming} incoming units`:"no incoming quantity"}</span></div>
     <div class="kpi ok"><span class="lbl">Total FG (pass)</span><span class="v">${pass}</span><span class="s">${pct(pass,list.length)} of checked</span></div>
@@ -1049,6 +1049,107 @@ async function makePdf(i){
   const n=d.getNumberOfPages();for(let p=1;p<=n;p++){d.setPage(p);d.setFontSize(7.5);d.setTextColor(120);d.text(`AC Charger Inspection Report · ${i.pileId} · Page ${p} of ${n}`,105,290,{align:"center"})}
   d.save(`QC_${i.pileId}_${i.day}.pdf`);toast("PDF downloaded")
 }
+async function makeSummaryPdf(){
+  if(!window.jspdf){toast("The PDF tool did not load. Reload the page and try again.");return}
+  const list=applyFilt(S.insp,false).slice().sort((a,b)=>(a.day||"").localeCompare(b.day||"")||String(a.checkedAt).localeCompare(String(b.checkedAt)));
+  if(!list.length){toast("No inspections in this filter to report.");return}
+  const {jsPDF}=window.jspdf,d=new jsPDF({unit:"mm",format:"a4"});const L=14,R=196,W=R-L;let y=14;
+  const C={ink:[20,24,30],mut:[93,107,122],blue:[29,79,145],ok:[31,122,74],hold:[200,120,0],ng:[179,38,30],pend:[170,178,188],line:[215,221,228],soft:[238,242,247]};
+  const col=c=>d.setTextColor(...c),fill=c=>d.setFillColor(...c),draw=c=>d.setDrawColor(...c);
+  const font=(s,b)=>{d.setFontSize(s);d.setFont("helvetica",b||"normal")};
+  const P=(a,b)=>b?(a/b*100).toFixed(1)+"%":"–";
+  const brk=h=>{if(y+h>280){d.addPage();y=16;return true}return false};
+  const title=t=>{y+=5;brk(14);font(11,"bold");col(C.blue);d.text(t,L,y);draw(C.blue);d.setLineWidth(.4);d.line(L,y+1.6,R,y+1.6);d.setLineWidth(.2);y+=6;col(C.ink)};
+  const note=t=>{font(7.5,"italic");col(C.mut);const ls=d.splitTextToSize(t,W);brk(ls.length*3.4);d.text(ls,L,y);y+=ls.length*3.4+1;col(C.ink)};
+  /* numbers */
+  const tested=list.length,units=new Set(list.map(i=>normId(i.pileId))).size;
+  const pass=list.filter(i=>i.status==="PASS").length,quar=list.filter(isQuar).length,rej=list.filter(i=>i.status==="REJECT").length,pend=list.filter(i=>!i.verified).length;
+  const ngU=list.filter(i=>(i.ngItems||[]).length),ngCount=ngU.reduce((a,i)=>a+i.ngItems.length,0),rein=list.filter(i=>i.reinspect||i.reworkOf).length;
+  const bIds=S.filt.batch?[S.filt.batch]:[...new Set(list.map(i=>i.batchId))],bmap=Object.fromEntries(S.batches.map(b=>[b.id,b]));
+  const incoming=bIds.reduce((a,id)=>a+(+bmap[id]?.incomingQty||0),0);
+  const secT={};[SECTIONS_V1,SECTIONS_V2,SECTIONS].forEach(ss=>ss.forEach(s=>secT[s.ltr]=s.title));
+  const bySec={},byGrp={},byItem={};
+  ngU.forEach(i=>{const secSeen=new Set();i.ngItems.forEach(k=>{const it=itemOf(i,k)||{code:k,text:k,group:k};const ltr=String(k).split("-")[0];
+    const s=bySec[ltr]||(bySec[ltr]={ltr,title:secT[ltr]||ltr,n:0,units:0});s.n++;if(!secSeen.has(ltr)){s.units++;secSeen.add(ltr)}
+    const g=byGrp[it.group]||(byGrp[it.group]={g:it.group,n:0});g.n++;
+    const lab=it.code+"|"+it.text,r=byItem[lab]||(byItem[lab]={code:it.code,text:it.text,ltr,n:0,rem:{}});r.n++;const rm=(i.remarks?.[k]||"").trim();if(rm){const kk=rm.toLowerCase();r.rem[kk]=r.rem[kk]||{t:rm,n:0};r.rem[kk].n++}})});
+  const secs=Object.values(bySec).sort((a,b)=>a.ltr.localeCompare(b.ltr)),grps=Object.values(byGrp).sort((a,b)=>b.n-a.n),items=Object.values(byItem).sort((a,b)=>b.n-a.n||a.code.localeCompare(b.code));
+  /* header */
+  const LW=24,LH=16.23;try{d.addImage(LOGO_PNG,"PNG",L,8,LW,LH)}catch(e){}
+  const TX=L+LW+5;font(8,"bold");col(C.mut);d.text("C ZERO SDN BHD · QUALITY CONTROL",TX,13);font(8);d.text(REV,R,13,{align:"right"});
+  font(16,"bold");col(C.ink);d.text("QC SUMMARY REPORT",TX,21);font(9);col(C.mut);d.text(PRODUCT+" · "+MODEL,TX,26);
+  y=33;
+  const f=S.filt,period=(f.from?dmy(f.from):"Start")+"  to  "+(f.to?dmy(f.to):"Today"),bname=f.batch?(bmap[f.batch]?.batchNo||"-"):"All batches";
+  const now=new Date(),who=(me()&&(me().name||acctName(me().user)))||"Management view";
+  fill(C.soft);d.rect(L,y,W,13,"F");
+  [["PERIOD",period],["BATCH",bname],["GENERATED",dmy(ymd(now))+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0")+" · "+who]].forEach(([k,v],ix)=>{const x=L+3+ix*61;font(7,"bold");col(C.mut);d.text(k,x,y+5);font(8.5,"bold");col(C.ink);d.text(d.splitTextToSize(String(v),58)[0],x,y+10)});
+  y+=19;
+  /* KPI tiles */
+  const tile=(x,w,lab,v,sub,c)=>{draw(C.line);fill([255,255,255]);d.roundedRect(x,y,w,22,1.5,1.5,"FD");fill(c);d.rect(x,y,1.6,22,"F");font(7,"bold");col(C.mut);d.text(lab.toUpperCase(),x+4,y+5.5);font(17,"bold");col(c===C.blue?C.ink:c);d.text(String(v),x+4,y+14.5);font(7.5);col(C.mut);d.text(sub,x+4,y+19.3)};
+  const tw=(W-4*3)/5;
+  tile(L,tw,"Total tested",tested,units===tested?"units inspected":units+" unique units",C.blue);
+  tile(L+(tw+3),tw,"Total PASS",pass,P(pass,tested)+" of tested",C.ok);
+  tile(L+2*(tw+3),tw,"Total NG",ngU.length,P(ngU.length,tested)+" of tested",C.ng);
+  tile(L+3*(tw+3),tw,"Quarantine",quar,P(quar,tested)+" of tested",C.hold);
+  tile(L+4*(tw+3),tw,"Reject",rej,P(rej,tested)+" of tested",C.ng);
+  y+=29;
+  font(8);col(C.ink);const facts=[["NG items found",ngCount+(ngU.length?"  (avg "+(ngCount/ngU.length).toFixed(1)+" per NG unit)":"")],["Awaiting verifier",pend+"  ("+P(pend,tested)+")"],["Re-inspections (rework)",String(rein)],["Incoming quantity",incoming?String(incoming):"–"],["Checked vs incoming",P(tested,incoming)],["Reject rate vs incoming",P(rej,incoming)]];
+  facts.forEach(([k,v],ix)=>{const x=L+(ix%3)*61,yy=y+Math.floor(ix/3)*5;font(7.5,"bold");col(C.mut);d.text(k+":",x,yy);font(8,"bold");col(C.ink);d.text(v,x+(d.getTextWidth(k+":")*7.5/7.5)+2,yy)});
+  y+=12;
+  /* status split bar */
+  title("1. Result breakdown");
+  const parts=[["PASS",pass,C.ok],["Quarantine",quar,C.hold],["Reject",rej,C.ng],["Awaiting verifier",pend,C.pend]];
+  let x=L;parts.forEach(([lab,n,c])=>{if(!n)return;const w=n/tested*W;fill(c);d.rect(x,y,w,9,"F");if(w>14){font(8,"bold");col([255,255,255]);d.text(P(n,tested),x+w/2,y+6,{align:"center"})}x+=w});
+  y+=13;x=L;parts.forEach(([lab,n,c])=>{fill(c);d.rect(x,y-2.6,3,3,"F");font(8);col(C.ink);const t=lab+": "+n+" ("+P(n,tested)+")";d.text(t,x+4.5,y);x+=d.getTextWidth(t)+11});
+  y+=3;
+  /* hbar helper */
+  const hbars=(rows,labW,max,fmt,c)=>rows.forEach(r=>{const ls=d.splitTextToSize(r.label,labW-2);const h=Math.max(6,ls.length*3.6+2.4);brk(h);font(8);col(C.ink);d.text(ls,L,y+4);
+    const bx=L+labW,bw=W-labW-40;fill(C.soft);d.rect(bx,y+1.2,bw,3.8,"F");fill(r.c||c);d.rect(bx,y+1.2,Math.max(.6,r.n/max*bw),3.8,"F");font(8,"bold");d.text(fmt(r),R,y+4.2,{align:"right"});y+=h});
+  /* NG by section */
+  title("2. NG by section");
+  if(!ngU.length)note("No NG found in this period.");
+  else{note(`Count = NG items found in that section. Units = units with at least one NG in that section. % = units affected out of ${tested} tested.`);
+    const smax=Math.max(...secs.map(s=>s.n));
+    hbars(secs.map(s=>({label:s.ltr+". "+s.title,n:s.n,units:s.units})),58,smax,r=>`${r.n} NG · ${r.units} unit${r.units==1?"":"s"} · ${P(r.units,tested)}`,C.ng);
+    y+=2;title("3. NG by area");
+    const gmax=grps[0].n;hbars(grps.map(g=>({label:g.g,n:g.n})),58,gmax,r=>`${r.n} · ${P(r.n,ngCount)} of NG`,[214,93,80]);
+    /* NG items table */
+    y+=2;title("4. NG detail by item (type of NG)");
+    note(`% NG units = share of the ${ngU.length} unit(s) with NG. % tested = share of all ${tested} tested. One unit can have more than one NG item.`);
+    const cx={code:L,item:L+14,cnt:126,pu:142,pt:160,bar:176};
+    const head=()=>{fill(C.blue);d.rect(L,y,W,6,"F");font(7.5,"bold");col([255,255,255]);d.text("CODE",cx.code+1.5,y+4.1);d.text("NG ITEM",cx.item,y+4.1);d.text("QTY",cx.cnt+8,y+4.1,{align:"right"});d.text("% NG UNITS",cx.pu+14,y+4.1,{align:"right"});d.text("% TESTED",cx.pt+13,y+4.1,{align:"right"});y+=6;col(C.ink)};
+    brk(14);head();const imax=items[0].n;
+    items.forEach((r,ix)=>{const rems=Object.values(r.rem).sort((a,b)=>b.n-a.n).slice(0,3).map(m=>m.t+(m.n>1?" (x"+m.n+")":"")).join("; ");
+      font(8);const tl=d.splitTextToSize(r.text,108);font(7);const rl=rems?d.splitTextToSize("Remarks: "+rems,108):[];
+      const h=Math.max(6,tl.length*3.6+rl.length*3.1+2.6);if(brk(h))head();
+      if(ix%2){fill([248,250,252]);d.rect(L,y,W,h,"F")}
+      font(8,"bold");col(C.mut);d.text(r.code,cx.code+1.5,y+4);font(8);col(C.ink);d.text(tl,cx.item,y+4);
+      if(rl.length){font(7,"italic");col(C.mut);d.text(rl,cx.item,y+4+tl.length*3.6);col(C.ink)}
+      font(8.5,"bold");col(C.ng);d.text(String(r.n),cx.cnt+8,y+4,{align:"right"});col(C.ink);font(8);d.text(P(r.n,ngU.length),cx.pu+14,y+4,{align:"right"});d.text(P(r.n,tested),cx.pt+13,y+4,{align:"right"});
+      fill(C.soft);d.rect(cx.bar,y+1.6,R-cx.bar-1,3,"F");fill(C.ng);d.rect(cx.bar,y+1.6,Math.max(.5,r.n/imax*(R-cx.bar-1)),3,"F");
+      y+=h;draw(C.line);d.line(L,y,R,y)});
+  }
+  /* daily */
+  const dayMap={};list.forEach(i=>{const m=dayMap[i.day]||(dayMap[i.day]={t:0,pass:0,ng:0,quar:0,rej:0,pend:0});m.t++;if(i.status==="PASS")m.pass++;if((i.ngItems||[]).length)m.ng++;if(isQuar(i))m.quar++;if(i.status==="REJECT")m.rej++;if(!i.verified)m.pend++});
+  const table=(t,cols,rows,tot)=>{title(t);const hd=()=>{fill(C.blue);d.rect(L,y,W,6,"F");font(7.5,"bold");col([255,255,255]);cols.forEach(c=>d.text(c[0],c[2]==="r"?c[1]:c[1]+1.5,y+4.1,{align:c[2]==="r"?"right":"left"}));y+=6;col(C.ink)};
+    brk(14);hd();rows.forEach((r,ix)=>{if(brk(5.5))hd();if(ix%2){fill([248,250,252]);d.rect(L,y,W,5.5,"F")}font(8);col(C.ink);cols.forEach((c,k)=>{if(c[3])col(c[3]);d.text(String(r[k]),c[2]==="r"?c[1]:c[1]+1.5,y+3.9,{align:c[2]==="r"?"right":"left"});col(C.ink)});y+=5.5});
+    if(tot){brk(6);fill(C.soft);d.rect(L,y,W,6,"F");font(8,"bold");cols.forEach((c,k)=>d.text(String(tot[k]),c[2]==="r"?c[1]:c[1]+1.5,y+4.1,{align:c[2]==="r"?"right":"left"}));y+=6}};
+  const days=Object.keys(dayMap).sort();
+  table("5. Daily summary",[["DATE",L],["TESTED",88,"r"],["PASS",106,"r",C.ok],["NG",122,"r",C.ng],["QUARANTINE",146,"r",C.hold],["REJECT",164,"r",C.ng],["AWAITING",180,"r"],["NG %",R-1.5,"r"]],
+    days.map(k=>{const m=dayMap[k];return [dmy(k),m.t,m.pass,m.ng,m.quar,m.rej,m.pend,P(m.ng,m.t)]}),["TOTAL",tested,pass,ngU.length,quar,rej,pend,P(ngU.length,tested)]);
+  if(bIds.length){const rows=bIds.map(id=>{const b=bmap[id]||{batchNo:"(deleted batch)",incomingQty:0},a=list.filter(i=>i.batchId===id);return [b.batchNo,+b.incomingQty||"–",a.length,a.filter(i=>i.status==="PASS").length,a.filter(i=>(i.ngItems||[]).length).length,a.filter(isQuar).length,a.filter(i=>i.status==="REJECT").length,P(a.filter(i=>i.status==="REJECT").length,+b.incomingQty)]});
+    table("6. By batch (within this period)",[["BATCH",L],["INCOMING",88,"r"],["TESTED",106,"r"],["PASS",122,"r",C.ok],["NG",138,"r",C.ng],["QUARANTINE",160,"r",C.hold],["REJECT",176,"r",C.ng],["REJ % INC",R-1.5,"r"]],rows)}
+  /* NG unit list */
+  if(ngU.length){title("7. List of units with NG");
+    const cw={d:L,p:L+20,s:L+62,n:L+88};
+    const hd=()=>{fill(C.blue);d.rect(L,y,W,6,"F");font(7.5,"bold");col([255,255,255]);d.text("DATE",cw.d+1.5,y+4.1);d.text("CHARGING PILE ID",cw.p,y+4.1);d.text("STATUS",cw.s,y+4.1);d.text("NG ITEMS",cw.n,y+4.1);y+=6;col(C.ink)};
+    brk(14);hd();ngU.forEach((i,ix)=>{font(7.5);const ng=(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join(", ");const nl=d.splitTextToSize(ng,R-cw.n-1);const pl=d.splitTextToSize(String(i.pileId||"-"),40);
+      const h=Math.max(nl.length,pl.length)*3.3+2.4;if(brk(h))hd();font(7.5);if(ix%2){fill([248,250,252]);d.rect(L,y,W,h,"F")}
+      col(C.ink);d.text(dmy(i.day),cw.d+1.5,y+3.8);font(7.5,"bold");d.text(pl,cw.p,y+3.8);
+      const st=i.verified?statusText(i.status):"Awaiting";col(i.status==="REJECT"?C.ng:isQuar(i)?C.hold:C.mut);d.text(st+(i.reworkOf||i.reinspect?" (re-insp.)":""),cw.s,y+3.8);col(C.ink);font(7.5);d.text(nl,cw.n,y+3.8);y+=h;draw(C.line);d.line(L,y,R,y)})}
+  const n=d.getNumberOfPages();for(let p=1;p<=n;p++){d.setPage(p);font(7.5);col([120,120,120]);d.text(`QC Summary Report · ${period} · ${bname} · Page ${p} of ${n}`,105,290,{align:"center"})}
+  d.save(`QC_Summary_${f.from||"all"}_${f.to||"all"}${f.batch?"_"+(bmap[f.batch]?.batchNo||"").replace(/[^\w-]+/g,""):""}.pdf`);toast("Summary report downloaded")
+}
 async function exportCsv(){
   const list=applyFilt(S.insp,S.tab!=="dash");
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
@@ -1098,6 +1199,7 @@ document.addEventListener("click",async e=>{
     case"verifyone":verify([t.dataset.id],$("#v-err"),t);break;
     case"pdf":{const i=S.insp.find(x=>x.id===t.dataset.id);if(i)makePdf(i);break}
     case"csv":exportCsv();break;
+    case"sumpdf":makeSummaryPdf();break;
     case"togglebatch":{const b=S.batches.find(x=>x.id===t.dataset.id);try{await api("toggleBatch",{id:b.id});await loadData(true);toast(`Batch ${b.batchNo} ${b.open===false?"reopened":"closed"}`)}catch(er){toast(dbErr(er))}break}
     case"delbatch":{if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirm delete";return}try{await api("deleteBatch",{id:t.dataset.id});await loadData(true);toast("Batch deleted")}catch(er){toast(dbErr(er))}break}
     case"resetpin":S.acctEdit=t.dataset.u;$("#view").innerHTML=viewHtml();$("#rp-pin")?.focus();break;
