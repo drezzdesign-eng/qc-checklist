@@ -209,7 +209,7 @@ const SECTIONS_V1=[
   {n:"3",title:"Communications",items:[["3a","WiFi connection"],["3b","OCPP URL (correct server URL)"]]},
   {n:"4",title:"CCTV",items:[["4a","CCTV LED indicator",{led:"led"}],["4b","CCTV QR ID",{scan:"cctvId"}]]},
   {n:"5",title:"Installation Accessories & Documents",items:[["5a","Wall mount bracket"],["5b","Wall mount screw pack"],["5c","User manual"]]}]}];
-const SECTIONS=[
+const SECTIONS_V2=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
   {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
   {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
@@ -219,17 +219,28 @@ const SECTIONS=[
   {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","LCD touch screen display working properly"],["1c","WiFi connection"],["1d","OCPP URL (correct server URL)"],["1e","Status light function and any light leaking"],["1f","Logo light function and any light leaking"],["1g","Ambient light function and any light leaking"],["1h","RFID charging mode test"],["1i","Plug & charge mode test"],["1j","CCTV indication light",{led:"led"}],["1k","CCTV ID",{scan:"cctvId",auto:true}],["1l","CCTV QR sticker condition"]]},
   {n:"2",title:"P.Circle App",note:"Reminder: the P.Circle app must be UNBOUND from the charger after app testing is complete.",items:[["2a","P.Circle app BIND to charger test"],["2b","P.Circle app start charging test"],["2c","P.Circle app stop charging test"],["2d","P.Circle app bind to CCTV function test"],["2e","CCTV QR sticker matches CCTV unit ID"],["2f","P.Circle app UNBIND from charger"],["2g","CCTV indication light after UNBIND",{led:"led2"}]]},
   {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]}];
+const SECTIONS=[
+ {ltr:"A",title:"APPEARANCE CHECK",groups:[
+  {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
+  {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
+  {n:"3",title:"LCD",items:[["3a","Protective screen condition"],["3b","LCD touch screen condition"]]},
+  {n:"4",title:"Nameplate",items:[["4a","Nameplate fixed properly"],["4b","Nameplate ID matches charging pile ID",{scan:"nameplateId",match:true}],["4c","Packaging box ID matches charging pile ID",{scan:"boxId",match:true}],["4d","Warranty seal number",{input:"warrantySeal"}]]}]},
+ {ltr:"B",title:"FUNCTIONS CHECK",groups:[
+  {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","LCD touch screen display working properly"],["1c","WiFi connection"],["1d","OCPP URL (correct server URL)"],["1e","Status light function and any light leaking"],["1f","Logo light function and any light leaking"],["1g","Ambient light function and any light leaking"],["1h","RFID charging mode test"],["1i","Plug & charge mode test"],["1j","CCTV indication light",{led:"led"}],["1k","CCTV ID",{scan:"cctvId",auto:true}],["1l","CCTV QR sticker condition"]]},
+  {n:"2",title:"P.Circle App",note:"Reminder: the P.Circle app must be UNBOUND from the charger after app testing is complete.",items:[["2a","P.Circle app BIND to charger test"],["2b","P.Circle app start charging test"],["2c","P.Circle app stop charging test"],["2d","P.Circle app bind to CCTV function test"],["2e","CCTV QR sticker matches CCTV unit ID"],["2f","P.Circle app UNBIND from charger"],["2g","CCTV indication light after UNBIND",{led:"led2"}]]},
+  {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]}];
 function flatItems(secs){const out=[];secs.forEach(s=>s.groups.forEach(g=>g.items.forEach(([c,t,o])=>out.push({key:s.ltr+"-"+c,code:s.ltr+c,text:t,opt:o||{},group:s.ltr+g.n+" "+g.title}))));return out}
-const ITEMS=flatItems(SECTIONS),ITEMS_V1=flatItems(SECTIONS_V1);
-const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i])),ITEM_V1=Object.fromEntries(ITEMS_V1.map(i=>[i.key,i]));
-function secFor(i){return Number(i&&i.cl)===2?SECTIONS:SECTIONS_V1}
-function itemOf(i,k){return (Number(i&&i.cl)===2?ITEM:ITEM_V1)[k]}
-const SCAN_LABEL={pileId:"Charging pile ID",nameplateId:"Nameplate ID",boxId:"Packaging box ID",cctvId:"CCTV ID"};
+const ITEMS=flatItems(SECTIONS),ITEMS_V2=flatItems(SECTIONS_V2),ITEMS_V1=flatItems(SECTIONS_V1);
+const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i])),ITEM_V2=Object.fromEntries(ITEMS_V2.map(i=>[i.key,i])),ITEM_V1=Object.fromEntries(ITEMS_V1.map(i=>[i.key,i]));
+function secFor(i){const c=Number(i&&i.cl);return c>=3?SECTIONS:c===2?SECTIONS_V2:SECTIONS_V1}
+function itemOf(i,k){const c=Number(i&&i.cl);return (c>=3?ITEM:c===2?ITEM_V2:ITEM_V1)[k]}
+const SCAN_LABEL={warrantySeal:"Warranty seal no.",pileId:"Charging pile ID",nameplateId:"Nameplate ID",boxId:"Packaging box ID",cctvId:"CCTV ID"};
 function normId(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
 function idsMatch(a,b){a=normId(a);b=normId(b);if(!a||!b)return false;if(a===b)return true;return Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))}
 function applyAutos(f){
   ITEMS.forEach(it=>{const o=it.opt,k=it.key;
-    if(o.led){if(f[o.led])f.res[k]=f[o.led]==="Green blinking"?"OK":"NG";else delete f.res[k]}
+    if(o.input){if((f[o.input]||"").trim())f.res[k]="OK";else delete f.res[k]}
+    else if(o.led){if(f[o.led])f.res[k]=f[o.led]==="Green blinking"?"OK":"NG";else delete f.res[k]}
     else if(o.scan&&o.match){const v=f[o.scan];const auto=/^ID mismatch: /.test(f.rem[k]||"");if(v&&f.pileId){const okm=idsMatch(v,f.pileId);f.res[k]=okm?"OK":"NG";if(!okm&&(!(f.rem[k]||"").trim()||auto))f.rem[k]="ID mismatch: "+v;if(okm&&auto)delete f.rem[k]}else{delete f.res[k];if(auto)delete f.rem[k]}}
     else if(o.scan&&o.auto){const v=(f[o.scan]||"").trim(),auto=(f.rem[k]||"")===AUTO_REM_CCTV;if(!v){delete f.res[k];if(auto)delete f.rem[k]}
       else if(o.scan!=="cctvId"||cctvValid(v)){f.res[k]="OK";if(auto)delete f.rem[k]}
@@ -242,7 +253,7 @@ function cctvValid(v){const o=parseCctv(v);return CCTV_KEYS.every(k=>(o[k]||"").
 function cctvParts(v){if(!String(v||"").trim())return[];const o=parseCctv(v),rows=CCTV_KEYS.map(k=>[k,o[k]||"–"]);Object.keys(o).forEach(k=>{if(!CCTV_KEYS.includes(k))rows.push([k,o[k]])});if(!Object.keys(o).length)rows.push(["QR",String(v).trim()]);return rows}
 const AUTO_REM_CCTV="CCTV QR format not valid (must have SN, DT and SC)";
 function cctvBoxHtml(v){const parts=cctvParts(v);if(!parts.length)return"";const ok=cctvValid(v);return `<div class="cctvbox ${ok?"":"bad"}">${parts.map(([k,x])=>`<div><span class="ck">${esc(k)}</span><span class="mono">${esc(x)}</span></div>`).join("")}<div class="small" style="display:block;margin-top:4px">${ok?'<b style="color:var(--ok)">Format OK</b>':'<b style="color:var(--ng)">Wrong QR format – needs SN, DT and SC. Counted as NG.</b>'}</div></div>`}
-function isAuto(o){return !!(o&&(o.led||(o.scan&&(o.match||o.auto))))}
+function isAuto(o){return !!(o&&(o.led||o.input||(o.scan&&(o.match||o.auto))))}
 const STATUS_INFO={PASS:["st-pass","PASS · FG"],QUARANTINE:["st-hold","QUARANTINE"],REJECT:["st-rej","REJECT"],"ON HOLD":["st-hold","ON HOLD"]};
 
 function statusPill(i){const s=STATUS_INFO[i.status];return s?`<span class="status ${s[0]}">${s[1]}</span>`:'<span class="status st-pending">AWAITING VERIFIER</span>'}
@@ -311,7 +322,7 @@ async function seedDemo(){
       const who=rnd()<.55?["ali","Ali Hassan"]:["amir","Amir Rahman"];const ver=dAgo>1||rnd()<.4;k++;
       const pile="CZ7"+bno.slice(-4).replace("-","")+String(i+1).padStart(3,"0");
       const st=!ver?"PENDING":ng.length?(rnd()<.6?"QUARANTINE":"REJECT"):"PASS";
-      M.insp.push({id:"s"+k,cl:2,batchId:bid,batchNo:bno,pileId:pile,pileMethod:rnd()<.85?"scan":"key",product:PRODUCT,model:MODEL,panel:rnd()<.5?"A":"B",
+      M.insp.push({id:"s"+k,cl:3,warrantySeal:"WS"+(500000+k),batchId:bid,batchNo:bno,pileId:pile,pileMethod:rnd()<.85?"scan":"key",product:PRODUCT,model:MODEL,panel:rnd()<.5?"A":"B",
         results:res,remarks:rem,ngItems:ng,status:st,led:ng.includes("B-1j")?["Green static","Red blinking","Red static"][k%3]:"Green blinking",led2:ng.includes("B-2g")?"Red static":"Green blinking",
         nameplateId:ng.includes("A-4b")?pile.slice(0,-1)+"9":pile,boxId:pile,cctvId:"{SN:BM10AD0A"+(10000+k)+",DT:DH-IPC-HFW1230S,SC:L2F8"+(1000+k)+"}",cctvPw:"",
         overall:ng.length?"Unit moved to rework area.":"",reinspect:false,checkedBy:who[0],checkedName:who[1],checkedAt:d.toISOString(),day:ymd(d),checkSignature:sig,checkSec:Math.round(360+rnd()*900+(who[0]==="amir"?240:0)),verifySec:ver?Math.round(900+rnd()*14000):"",
@@ -321,7 +332,7 @@ async function mockApi(action,p){
   await new Promise(r=>setTimeout(r,150));
   const fail=m=>({ok:false,error:m}),ok=o=>({ok:true,...o});
   const pub=a=>({username:a.username,name:a.name,role:a.role});
-  if(action==="ping")return ok({setup:true,version:4});
+  if(action==="ping")return ok({setup:true,version:5});
   if(action==="viewData"){if(p.key!=="demo")return fail("VIEW_LINK_INVALID");return ok({batches:JSON.parse(JSON.stringify(M.batches)),inspections:JSON.parse(JSON.stringify(M.insp))})}
   if(action==="login"){const a=M.acc[cleanUser(p.username)];if(!a||a.pin!==String(p.pin))return fail("Username or PIN is not correct.");if(!a.active)return fail("This account is deactivated. Contact your admin.");return ok({token:"demo|"+a.username,user:pub(a)})}
   const me=M.acc[String(TOKEN).split("|")[1]];if(!me||!me.active)return fail("SESSION_EXPIRED");
@@ -398,7 +409,7 @@ async function start(){
   TOKEN=(DEMO?"":ls("czqc-token"))||"";
   try{
     const p=await api("ping");
-    S.backendV=DEMO?4:(p.version||1);
+    S.backendV=DEMO?5:(p.version||1);
     if(VIEW_KEY){if(!DEMO&&S.backendV<3){S.phase="error";S.err="This view-only link needs the latest Google Sheet script. Ask the admin to update Code.gs.";render();return}
       S.phase="ready";setSession({username:"",name:"Management view",role:"viewer"});render();await loadData();return}
     if(!p.setup){S.phase="setup";render();return}
@@ -486,7 +497,7 @@ function setupView(){
 
 /* ---------- staff: new inspection ---------- */
 
-function blankForm(){return{batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},nameplateId:"",boxId:"",cctvId:"",cctvPw:"",led:"",led2:"",overall:"",reinspect:false}}
+function blankForm(){return{warrantySeal:"",batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},nameplateId:"",boxId:"",cctvId:"",cctvPw:"",led:"",led2:"",overall:"",reinspect:false}}
 function formView(){
   const f=S.form,s=me();
   const sections=SECTIONS.map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
@@ -528,6 +539,7 @@ function scanBox(target,f){return `<div class="scanbox"><input type="text" class
 function itemExtra(k,o,f){
   o=o||{};
   if(o.led)return `<select class="led-sel" id="f-${o.led}" data-f="${o.led}" aria-label="CCTV indication light"><option value="">Select light status…</option>${LED_OPTS.map(x=>`<option ${f[o.led]===x?"selected":""}>${x}</option>`).join("")}</select>`;
+  if(o.input)return `<input type="text" class="mono" id="f-${o.input}" data-f="${o.input}" value="${esc(f[o.input]||"")}" placeholder="Key in warranty seal number (required)" autocomplete="off" autocapitalize="characters" style="flex:1 1 100%" aria-label="Warranty seal number">`;
   if(o.scan)return `<div style="flex:1 1 100%;min-width:0">${scanBox(o.scan,f)}${o.scan==="cctvId"?`<div id="cctv-parts">${cctvBoxHtml(f.cctvId)}</div>`:""}</div>`;
   return "";
 }
@@ -576,7 +588,7 @@ async function submitForm(){
   if(!f.batchId)return err.textContent="Select the batch.";
   if(!pid)return err.textContent=f.pileMethod==="key"?"Key in the charging pile ID.":"Scan the charging pile QR code.";
   if(!f.panel)return err.textContent="Choose decorative panel Pattern A or B.";
-  if(missing.length){const m=missing[0];return err.textContent=`${missing.length} item(s) not done yet, starting with ${m.code} ${m.text}`+(m.opt.scan?" (scan the ID).":m.opt.led?" (select the light status).":".")}
+  if(missing.length){const m=missing[0];return err.textContent=`${missing.length} item(s) not done yet, starting with ${m.code} ${m.text}`+(m.opt.input?" (key in the warranty seal number).":m.opt.scan?" (scan the ID).":m.opt.led?" (select the light status).":".")}
   const noRem=ITEMS.filter(i=>f.res[i.key]==="NG"&&!(f.rem[i.key]||"").trim());
   if(noRem.length){$(`#rem-${noRem[0].key}`)?.focus();return err.textContent=`Write a remark for every NG item. Missing: ${noRem.map(i=>i.code).join(", ")}.`}
   if(!CPAD||CPAD.isEmpty())return err.textContent="Sign in the Checked by box before submitting.";
@@ -586,7 +598,8 @@ async function submitForm(){
   const b=S.batches.find(x=>x.id===f.batchId);
   const rem={};Object.keys(f.rem).forEach(k=>{if(ITEM[k]&&f.rem[k]&&f.rem[k].trim())rem[k]=f.rem[k].trim()});
   const res={};ITEMS.forEach(i=>res[i.key]=f.res[i.key]);
-  const doc={cl:2,batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
+  if(S.backendV<5)return err.textContent="The system is being updated. Ask the admin to update the Google Sheet script (Code.gs), then submit again.";
+  const doc={warrantySeal:(f.warrantySeal||"").trim(),cl:3,batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
     results:res,remarks:rem,ngItems:ng,status:"PENDING",nameplateId:f.nameplateId.trim(),boxId:f.boxId.trim(),cctvId:f.cctvId.trim(),cctvPw:"",
     led:f.led,led2:f.led2,pileMethod:f.pileMethod==="key"?"key":"scan",overall:f.overall.trim(),reinspect:!!(dup&&f.reinspect),checkSignature:CPAD.data(),checkStartedAt:f.startedAt||"",checkSec:f.startedAt?Math.round((Date.now()-new Date(f.startedAt).getTime())/1000):""};
   const btn=$("#f-submit");btn.disabled=true;btn.textContent="Saving…";
@@ -620,7 +633,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.7";
+const APP_VERSION="v2.8";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
@@ -785,6 +798,7 @@ async function verify(ids,errEl,btn){
 }
 function extraFor(i,k,o){
   o=o||{};const parts=[];
+  if(o.input&&i[o.input])parts.push(`Seal no.: <span class="mono"><b>${esc(i[o.input])}</b></span>`);
   if(o.led&&i[o.led])parts.push(`Light: <b>${esc(i[o.led])}</b>`);
   if(o.scan&&i[o.scan]){const cp=o.scan==="cctvId"?cctvParts(i[o.scan]):[];parts.push(cp.length?cp.map(([k,x])=>`${esc(k)}: <span class="mono">${esc(x)}</span>`).join("<br>"):`${esc(SCAN_LABEL[o.scan]||"ID")}: <span class="mono">${esc(i[o.scan])}</span>`)}
   if(o.scan==="cctvId"&&i.cctvPw)parts.push(`PW: <span class="mono">${esc(i.cctvPw)}</span>`);
@@ -963,6 +977,7 @@ async function makePdf(i){
     sec.groups.forEach(g=>{brk(5.5);d.setFont("helvetica","bold");d.setFontSize(8.5);d.text(g.n+". "+g.title,L+14,y+3.9);y+=5.5;line(y);
       g.items.forEach(([c,t,o])=>{o=o||{};const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";
         let rm=i.remarks?.[k]||"",full="";
+        if(o.input&&i[o.input])rm="Seal no.: "+i[o.input]+(rm?" · "+rm:"");
         if(o.led&&i[o.led])rm="Light: "+i[o.led]+(rm?" · "+rm:"");
         let fullLines=null;
         if(o.scan==="cctvId"&&cctvParts(i.cctvId).length){fullLines=cctvParts(i.cctvId).map(([kk,x])=>kk+": "+x);if(i.cctvPw)fullLines.push("PW: "+i.cctvPw)}
@@ -995,8 +1010,8 @@ async function makePdf(i){
 async function exportCsv(){
   const list=applyFilt(S.insp,S.tab!=="dash");
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version","Check started","Checking time (sec)","Verify time (sec)","Total time (sec)",...ITEMS.map(i=>i.code)];
-  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",i.checkStartedAt?dt(i.checkStartedAt):"",i.checkSec??"",i.verifySec??"",isNaN(totalSec(i))?"":totalSec(i),...ITEMS.map(t=>Number(i.cl)===2?(i.results?.[t.key]||""):"")]);
+  const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","Warranty seal no.","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version","Check started","Checking time (sec)","Verify time (sec)","Total time (sec)",...ITEMS.map(i=>i.code)];
+  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.warrantySeal||"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",i.checkStartedAt?dt(i.checkStartedAt):"",i.checkSec??"",i.verifySec??"",isNaN(totalSec(i))?"":totalSec(i),...ITEMS.map(t=>Number(i.cl)>=2?(i.results?.[t.key]||""):"")]);
   const csv="﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`QC_records_${S.filt.from||"all"}_${S.filt.to||"all"}.csv`;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("CSV downloaded")
 }
@@ -1050,7 +1065,7 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
-  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="nameplateId")S.form.npAuto=false;if(t.dataset.f==="pileId"){syncNameplate(t.value.trim().toUpperCase());startTimer(t.value.trim().toUpperCase())}if(["pileId","nameplateId","boxId","cctvId"].includes(t.dataset.f))updateFormUI()}
+  if(t.dataset.f&&S.form&&t.tagName!=="SELECT"){S.form[t.dataset.f]=t.type==="checkbox"?t.checked:t.value;saveDraft();if(t.dataset.f==="nameplateId")S.form.npAuto=false;if(t.dataset.f==="pileId"){syncNameplate(t.value.trim().toUpperCase());startTimer(t.value.trim().toUpperCase())}if(["pileId","nameplateId","boxId","cctvId","warrantySeal"].includes(t.dataset.f))updateFormUI()}
   if(t.dataset.rem&&S.form){S.form.rem[t.dataset.rem]=t.value;saveDraft();updateFormUI()}
 });
 document.addEventListener("change",e=>{
