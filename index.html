@@ -105,7 +105,7 @@ label.btn.primary{color:var(--accent-ink)}
 .cctvbox div{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;overflow-wrap:anywhere}
 .cctvbox .ck{font-family:var(--f-display);font-weight:700;color:var(--muted);letter-spacing:.06em}
 .timer{font-family:var(--f-mono);font-weight:500;font-size:16px;color:var(--accent);background:var(--accent-soft);padding:3px 10px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.timer.idle{color:var(--muted);background:var(--soft)}
+.timer.idle{color:var(--muted);background:var(--soft);white-space:normal;font-family:var(--f-body);font-size:13px}
 .autotag{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:3px;vertical-align:1px}
 .rbadge{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.06em;min-width:48px;padding:5px 10px;border-radius:4px;text-align:center;cursor:default;display:inline-block}
 .rbadge.ok{background:var(--ok-bg);color:var(--ok)} .rbadge.ng{background:var(--ng);color:var(--paper)} .rbadge.none{background:var(--soft);color:var(--muted)}
@@ -224,11 +224,13 @@ const SECTIONS=[
   {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
   {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
   {n:"3",title:"LCD",items:[["3a","Protective screen condition"],["3b","LCD touch screen condition"]]},
-  {n:"4",title:"Nameplate",items:[["4a","Nameplate fixed properly"],["4b","Nameplate ID matches charging pile ID",{scan:"nameplateId",match:true}],["4c","Packaging box ID matches charging pile ID",{scan:"boxId",match:true}],["4d","Warranty seal number",{input:"warrantySeal"}]]}]},
+  {n:"4",title:"Nameplate",items:[["4a","Nameplate fixed properly"],["4b","Nameplate ID matches charging pile ID",{scan:"nameplateId",match:true}],["4c","Packaging box ID matches charging pile ID",{scan:"boxId",match:true}]]}]},
  {ltr:"B",title:"FUNCTIONS CHECK",groups:[
   {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","LCD touch screen display working properly"],["1c","WiFi connection"],["1d","OCPP URL (correct server URL)"],["1e","Status light function and any light leaking"],["1f","Logo light function and any light leaking"],["1g","Ambient light function and any light leaking"],["1h","RFID charging mode test"],["1i","Plug & charge mode test"],["1j","CCTV indication light",{led:"led"}],["1k","CCTV ID",{scan:"cctvId",auto:true}],["1l","CCTV QR sticker condition"]]},
   {n:"2",title:"P.Circle App",note:"Reminder: the P.Circle app must be UNBOUND from the charger after app testing is complete.",items:[["2a","P.Circle app BIND to charger test"],["2b","P.Circle app start charging test"],["2c","P.Circle app stop charging test"],["2d","P.Circle app bind to CCTV function test"],["2e","CCTV QR sticker matches CCTV unit ID"],["2f","P.Circle app UNBIND from charger"],["2g","CCTV indication light after UNBIND",{led:"led2"}]]},
-  {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]}];
+  {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]},
+ {ltr:"C",title:"WARRANTY",groups:[
+  {n:"1",title:"Warranty",items:[["1a","Warranty seal number",{input:"warrantySeal"}]]}]}];
 function flatItems(secs){const out=[];secs.forEach(s=>s.groups.forEach(g=>g.items.forEach(([c,t,o])=>out.push({key:s.ltr+"-"+c,code:s.ltr+c,text:t,opt:o||{},group:s.ltr+g.n+" "+g.title}))));return out}
 const ITEMS=flatItems(SECTIONS),ITEMS_V2=flatItems(SECTIONS_V2),ITEMS_V1=flatItems(SECTIONS_V1);
 const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i])),ITEM_V2=Object.fromEntries(ITEMS_V2.map(i=>[i.key,i])),ITEM_V1=Object.fromEntries(ITEMS_V1.map(i=>[i.key,i]));
@@ -577,7 +579,7 @@ function startTimer(pile){const f=S.form;if(pile&&(!f.startedAt||(f.timerPile&&f
 function syncNameplate(newPile){const f=S.form,old=f.pileId||"";if(!f.nameplateId||f.nameplateId===old||f.npAuto){f.nameplateId=newPile;f.npAuto=true;const el=$("#f-nameplateId");if(el)el.value=newPile}}
 let CPAD=null,TIMER_INT=null;
 function tickTimer(){const el=$("#f-timer");if(!el){clearInterval(TIMER_INT);TIMER_INT=null;return}const f=S.form;
-  if(f&&f.startedAt){el.classList.remove("idle");el.textContent="Checking "+clock((Date.now()-new Date(f.startedAt).getTime())/1000)}else{el.classList.add("idle");el.textContent="Timer starts when you scan the pile ID"}}
+  if(f&&f.startedAt){el.classList.remove("idle");el.textContent="Checking "+clock((Date.now()-new Date(f.startedAt).getTime())/1000)}else{el.classList.add("idle");el.textContent="Timer starts at pile ID scan"}}
 function ensureTimer(){tickTimer();if(!TIMER_INT)TIMER_INT=setInterval(tickTimer,1000)}
 async function submitForm(){
   const f=S.form,s=me(),err=$("#f-err");err.textContent="";
@@ -633,7 +635,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v2.8";
+const APP_VERSION="v2.9";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
