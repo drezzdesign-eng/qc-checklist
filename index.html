@@ -249,7 +249,7 @@ const NOCCTV_DEP=["B-1l","B-2e"],AUTO_REM_NOCCTV="No CCTV QR sticker on unit";
 function applyAutos(f){
   ITEMS.forEach(it=>{const o=it.opt,k=it.key;
     if(o.scan==="cctvId"&&o.auto){if(f.noCctv){f.cctvId="";f.res[k]="NG";if(!(f.rem[k]||"").trim()||f.rem[k]===AUTO_REM_CCTV)f.rem[k]=AUTO_REM_NOCCTV;return}if(f.rem[k]===AUTO_REM_NOCCTV)delete f.rem[k]}
-    if(o.input){const others=Object.keys(f.res).some(x=>x!==k&&f.res[x]==="NG");if(!others)f.sealNA=false;if(f.sealNA)f.res[k]="NA";else if((f[o.input]||"").trim())f.res[k]="OK";else delete f.res[k]}
+    if(o.input){if(f.noCctv){f.sealNA=true;f.sealAuto=true}else if(f.sealAuto){f.sealNA=false;f.sealAuto=false}const others=Object.keys(f.res).some(x=>x!==k&&f.res[x]==="NG");if(!others)f.sealNA=false;if(f.sealNA)f.res[k]="NA";else if((f[o.input]||"").trim())f.res[k]="OK";else delete f.res[k]}
     else if(o.led){if(f[o.led])f.res[k]=f[o.led]==="Green blinking"?"OK":"NG";else delete f.res[k]}
     else if(o.scan&&o.match){const v=f[o.scan];const auto=/^ID mismatch: /.test(f.rem[k]||"");if(v&&f.pileId){const okm=idsMatch(v,f.pileId);f.res[k]=okm?"OK":"NG";if(!okm&&(!(f.rem[k]||"").trim()||auto))f.rem[k]="ID mismatch: "+v;if(okm&&auto)delete f.rem[k]}else{delete f.res[k];if(auto)delete f.rem[k]}}
     else if(o.scan&&o.auto){const v=(f[o.scan]||"").trim(),auto=(f.rem[k]||"")===AUTO_REM_CCTV;if(!v){delete f.res[k];if(auto)delete f.rem[k]}
@@ -558,7 +558,7 @@ function scanBox(target,f){return `<div class="scanbox"><input type="text" class
 function itemExtra(k,o,f){
   o=o||{};
   if(o.led)return `<select class="led-sel" id="f-${o.led}" data-f="${o.led}" aria-label="CCTV indication light"><option value="">Select light status…</option>${LED_OPTS.map(x=>`<option ${f[o.led]===x?"selected":""}>${x}</option>`).join("")}</select>`;
-  if(o.input)return `<input type="text" class="mono" id="f-${o.input}" data-f="${o.input}" value="${esc(f[o.input]||"")}" placeholder="Key in warranty seal number (required)" autocomplete="off" autocapitalize="characters" style="flex:1 1 100%" aria-label="Warranty seal number"><label class="sealna" id="sealna-wrap" hidden><input type="checkbox" id="f-sealNA" data-f="sealNA" ${f.sealNA?"checked":""}> Seal not applied – major defect</label>`;
+  if(o.input)return `<input type="text" class="mono" id="f-${o.input}" data-f="${o.input}" value="${esc(f[o.input]||"")}" placeholder="Key in warranty seal number (required)" autocomplete="off" autocapitalize="characters" style="flex:1 1 100%" aria-label="Warranty seal number"><label class="sealna" id="sealna-wrap" hidden><input type="checkbox" id="f-sealNA" data-f="sealNA" ${f.sealNA?"checked":""}> <span id="sealna-txt">Seal not applied – major defect</span></label>`;
   if(o.scan)return `<div style="flex:1 1 100%;min-width:0">${scanBox(o.scan,f)}${o.scan==="cctvId"?`<div id="cctv-parts">${cctvBoxHtml(f.cctvId)}</div><label class="sealna" style="margin-top:6px"><input type="checkbox" id="f-noCctv" data-f="noCctv" ${f.noCctv?"checked":""}> No CCTV QR sticker on this unit</label>`:""}</div>`;
   return "";
 }
@@ -573,7 +573,7 @@ function updateFormUI(){
     const ri=r.querySelector("[data-rem]");if(ri){ri.placeholder=v==="NG"?"Remark (required for NG)":"Remark";if(document.activeElement!==ri&&(f.rem[k]||"")!==ri.value)ri.value=f.rem[k]||""}
     r.querySelector(".ok").setAttribute("aria-pressed",v==="OK");r.querySelector(".ng").setAttribute("aria-pressed",v==="NG");
     if(v==="OK"||v==="NA")ok++;if(v==="NG")ng++});
-  {const w=$("#sealna-wrap"),hasNg=Object.keys(f.res).some(x=>x!=="C-1a"&&f.res[x]==="NG");if(w){w.hidden=!hasNg;const cb=$("#f-sealNA");if(cb)cb.checked=!!f.sealNA}const si=$("#f-warrantySeal");if(si){si.disabled=!!f.sealNA;si.placeholder=f.sealNA?"Not applied – major defect":"Key in warranty seal number (required)"}}
+  {const w=$("#sealna-wrap"),hasNg=Object.keys(f.res).some(x=>x!=="C-1a"&&f.res[x]==="NG");if(w){w.hidden=!hasNg;const cb=$("#f-sealNA");if(cb){cb.checked=!!f.sealNA;cb.disabled=!!f.noCctv}const lt=$("#sealna-txt");if(lt)lt.textContent=f.noCctv?"Seal not applied – no CCTV QR sticker (auto)":"Seal not applied – major defect"}const si=$("#f-warrantySeal");if(si){si.disabled=!!f.sealNA;si.placeholder=f.sealNA?(f.noCctv?"Not applied – no CCTV QR sticker":"Not applied – major defect"):"Key in warranty seal number (required)"}}
   ["nameplateId","boxId"].forEach(t=>{const h=$("#hint-"+t);if(!h)return;const v=f[t];
     h.innerHTML=!v?"":!f.pileId?"Scan the charging pile ID first to compare.":(t==="nameplateId"&&f.npAuto)?'<b style="color:var(--ok)">Filled from charging pile ID.</b> Scan the nameplate QR if it is different.':idsMatch(v,f.pileId)?'<b style="color:var(--ok)">Matches charging pile ID</b>':'<b style="color:var(--ng)">Does not match charging pile ID</b>'});
   ["pileId","nameplateId","boxId","cctvId"].forEach(t=>{const el=$("#f-"+t);if(el)el.classList.toggle("has",!!(f[t]||"").trim())});
@@ -661,7 +661,7 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v3.2";
+const APP_VERSION="v3.3";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
