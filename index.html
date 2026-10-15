@@ -326,6 +326,10 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
   .status,.rbadge,.res button{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .sheet{break-inside:avoid}
 }
+.appver{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--bg);box-shadow:var(--in-sm);color:var(--accent);font-family:var(--f-mono);font-size:11px;letter-spacing:0;text-transform:none}
+.appver-line{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.appver-line b{font-family:var(--f-mono);color:var(--accent)}
+@media print{.appver{box-shadow:none;border:1px solid #cbd5e1}}
 </style>
 </head>
 <body>
@@ -339,6 +343,7 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 <div class="toast" id="toast" hidden></div>
 
 <script>
+const APP_VERSION="v4.1",APP_DATE="15/10/2026";
 /* ---------- checklist definition ---------- */
 const SECTIONS_V1=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
@@ -623,7 +628,7 @@ function shell(){
   const s=me();
   const tabs=TABS[s.role].map(([k,l])=>`<button type="button" role="tab" data-act="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}${k==="verify"?`<span class="badge" id="badge-verify" ${pendingCount()?"":"hidden"}>${pendingCount()}</span>`:""}</button>`).join("");
   return `<header class="sheet" style="display:flex;flex-direction:column;gap:12px;padding-bottom:0">
-    <div class="bar"><div class="brandrow"><img class="brandlogo" src="${LOGO_PNG}" alt="C Zero Sdn Bhd"><div class="brand"><div class="co">Quality Control</div><h1>AC Charger QC Inspection</h1></div></div>
+    <div class="bar"><div class="brandrow"><img class="brandlogo" src="${LOGO_PNG}" alt="C Zero Sdn Bhd"><div class="brand"><div class="co">Quality Control <span class="appver" title="App version, updated ${APP_DATE}">${APP_VERSION}</span></div><h1>AC Charger QC Inspection</h1></div></div>
     <div class="who"><div style="text-align:right"><div><b>${esc(s.name)}</b></div><div class="small muted mono">${esc(s.username)}</div></div><span class="role">${ROLES[s.role]}</span>${DEMO?'<span class="status demo-tag">DEMO</span>':""}<button class="btn sm" type="button" data-act="refresh" title="Load the latest records">Refresh</button>${s.role==="viewer"?`<a class="btn sm" href="${location.pathname}${DEMO?"#demo":""}" data-act="stafflogin">Staff log in</a>`:`<button class="btn sm" type="button" data-act="tab" data-tab="pin">PIN</button><button class="btn sm" type="button" data-act="logout">Log out</button>`}</div></div>
     ${s.role==="viewer"?`<div class="readonly"><span class="status st-pending">VIEW ONLY</span> You can view the dashboard, records and PDFs. Nothing can be changed from this link.</div>`:""}
     ${S.backendV<2&&s.role!=="viewer"?`<div class="warn"><b>Update needed:</b> the Google Sheet script is an older version, so new inspections cannot be submitted yet. ${s.role==="admin"?"Paste the new Code.gs into Apps Script and deploy a new version.":"Ask the admin to update the system."}</div>`:""}
@@ -645,7 +650,8 @@ function afterRender(){
 function loginView(){return `<form class="sheet login" id="login-form">
   ${brandHead()}
   ${DEMO?`<div class="note"><b>DEMO MODE.</b> Sample data only. Changes reset when you reload.</div><div class="field"><span class="lbl">Quick login</span><div class="row">${DEMO_USERS.map(([u,p,n,r])=>`<button type="button" class="btn sm" data-act="demologin" data-u="${u}" data-p="${p}">${ROLES[r]}: ${u}</button>`).join("")}<a class="btn sm" href="#demo-view" data-act="demoview">View-only link (no login)</a></div></div>`:""}
-  <p class="muted small">Log in with the username and PIN given by your admin. <span class="mono" style="opacity:.6">${typeof APP_VERSION!=="undefined"?APP_VERSION:""}</span></p>
+  <p class="muted small">Log in with the username and PIN given by your admin. </p>
+  <div class="appver-line">App version <b>${APP_VERSION}</b> · updated ${APP_DATE}</div>
   <div class="field"><label for="l-user">Username</label><input type="text" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
   <div class="field"><label for="l-pin">PIN</label><input type="password" id="l-pin" inputmode="numeric" autocomplete="current-password" maxlength="8"></div>
   <div class="err" id="l-err" aria-live="polite"></div>
@@ -821,7 +827,6 @@ async function applyScanFile(target,file){
 }
 
 /* ---------- live camera scanner (native camera + jsQR/ZXing) ---------- */
-const APP_VERSION="v3.5";
 let LIVE=null;
 async function startLive(target){
   unlockAudio();
