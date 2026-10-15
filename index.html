@@ -329,6 +329,7 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 .appver{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--bg);box-shadow:var(--in-sm);color:var(--accent);font-family:var(--f-mono);font-size:11px;letter-spacing:0;text-transform:none}
 .updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:25;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px);padding:12px 16px;border-radius:16px;background:var(--bg);color:var(--ink);box-shadow:var(--out-lg);font-size:14px}
 @media print{.updbar{display:none}}
+.note-addon{padding:14px 18px}
 .appver-line{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .appver-line b{font-family:var(--f-mono);color:var(--accent)}
 @media print{.appver{box-shadow:none;border:1px solid #cbd5e1}}
@@ -345,7 +346,7 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 <div class="toast" id="toast" hidden></div>
 
 <script>
-const APP_VERSION="v4.2",APP_DATE="15/10/2026";
+const APP_VERSION="v4.3",APP_DATE="15/10/2026";
 /* ---------- checklist definition ---------- */
 const SECTIONS_V1=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
@@ -523,6 +524,9 @@ async function mockApi(action,p){
       const row={...d,checkSec:d.checkSec===""?"":+d.checkSec,id:"n"+Date.now(),batchNo:b.batchNo,ngItems:ng,status:"PENDING",checkedBy:me.username,checkedName:d.paper?d.paperChecker:me.name,checkedAt:d.paper?new Date(d.paperDate+"T12:00:00+08:00").toISOString():t.toISOString(),day:d.paper?d.paperDate:ymd(t),verified:false,keyedBy:d.paper?me.username:"",keyedName:d.paper?me.name:"",keyedAt:d.paper?t.toISOString():""};delete row.paperDate;delete row.paperChecker;M.insp.push(row);return ok({id:row.id,status:row.status})}
     case"verify":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");if(!["PASS","QUARANTINE","REJECT"].includes(p.status))return fail("Select the final status.");let n=0,sk=0;const t=new Date().toISOString();
       M.insp.forEach(i=>{if(!p.ids.includes(i.id))return;if(i.verified||i.checkedBy===me.username||(p.status==="PASS"&&(i.ngItems||[]).length)){sk++;return}Object.assign(i,{verifySec:i.paper?"":Math.round((Date.now()-new Date(i.checkedAt).getTime())/1000),verified:true,status:p.status,verifiedBy:me.username,verifiedName:me.name,verifiedAt:t,signature:p.signature,verifyComment:p.comment||""});n++});return ok({verified:n,skipped:sk})}
+    case"addCheck":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");const i=M.insp.find(x=>x.id===p.id);if(!i)return fail("Inspection not found.");if(Number(i.cl)!==3)return fail("This record already has CCTV view test, or it uses an older checklist.");
+      if(p.result==="NG"&&!(p.remark||"").trim())return fail("Write a remark for the NG result.");const mv=k=>({"B-2e":"B-2f","B-2f":"B-2g","B-2g":"B-2h"})[k]||k;const nr={},nm={};Object.keys(i.results||{}).forEach(k=>nr[mv(k)]=i.results[k]);Object.keys(i.remarks||{}).forEach(k=>nm[mv(k)]=i.remarks[k]);
+      i.ngItems=(i.ngItems||[]).map(mv);nr["B-2e"]=p.result;if(p.result==="NG"){nm["B-2e"]=p.remark.trim();i.ngItems.push("B-2e");if(i.status==="PASS")i.status="QUARANTINE"}Object.assign(i,{cl:4,results:nr,remarks:nm,addOnBy:me.username,addOnName:me.name,addOnAt:new Date().toISOString()});return ok({status:i.status})}
     case"changePin":if(me.pin!==String(p.oldPin))return fail("Current PIN is not correct.");me.pin=String(p.newPin);return ok({});
     case"createAccount":{if(!need(["admin"]))return fail("Your role cannot do this.");const u=cleanUser(p.username);if(M.acc[u])return fail(`Username ${u} is already taken.`);M.acc[u]={username:u,name:p.name,role:p.role,pin:String(p.pin),active:true};return ok({})}
     case"resetPin":{if(!need(["admin"]))return fail("Your role cannot do this.");const a=M.acc[p.username];if(!a)return fail("Account not found.");a.pin=String(p.pin);return ok({})}
@@ -601,7 +605,7 @@ async function start(){
   TOKEN=(DEMO?"":ls("czqc-token"))||"";
   try{
     const p=await api("ping");
-    S.backendV=DEMO?6:(p.version||1);
+    S.backendV=DEMO?8:(p.version||1);
     if(VIEW_KEY){if(!DEMO&&S.backendV<3){S.phase="error";S.err="This view-only link needs the latest Google Sheet script. Ask the admin to update Code.gs.";render();return}
       S.phase="ready";setSession({username:"",name:"Management view",role:"viewer"});render();await loadData();return}
     if(!p.setup){S.phase="setup";render();return}
@@ -969,12 +973,12 @@ async function decodeQR(file){
 /* ---------- records ---------- */
 
 
-function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="QUAR"&&isQuar(i))||(f.status==="REJ"&&i.status==="REJECT")||(f.status==="PEND"&&!i.verified)))}
+function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="QUAR"&&isQuar(i))||(f.status==="REJ"&&i.status==="REJECT")||(f.status==="PEND"&&!i.verified)||(f.status==="NO2E"&&Number(i.cl)===3)))}
 function filterBar(withStatus){const f=S.filt;return `<div class="grid4">
   <div class="field"><label for="ft-from">From</label><input type="date" id="ft-from" data-filt="from" value="${f.from}"></div>
   <div class="field"><label for="ft-to">To</label><input type="date" id="ft-to" data-filt="to" value="${f.to}"></div>
   <div class="field"><label for="ft-batch">Batch</label><select id="ft-batch" data-filt="batch"><option value="">All batches</option>${S.batches.map(b=>`<option value="${esc(b.id)}" ${f.batch===b.id?"selected":""}>${esc(b.batchNo)}</option>`).join("")}</select></div>
-  ${withStatus?`<div class="field"><label for="ft-status">Status</label><select id="ft-status" data-filt="status"><option value="">All</option><option value="PASS" ${f.status==="PASS"?"selected":""}>PASS · FG</option><option value="QUAR" ${f.status==="QUAR"?"selected":""}>QUARANTINE</option><option value="REJ" ${f.status==="REJ"?"selected":""}>REJECT</option><option value="PEND" ${f.status==="PEND"?"selected":""}>Awaiting verifier</option></select></div>`:`<div></div>`}</div>`}
+  ${withStatus?`<div class="field"><label for="ft-status">Status</label><select id="ft-status" data-filt="status"><option value="">All</option><option value="PASS" ${f.status==="PASS"?"selected":""}>PASS · FG</option><option value="QUAR" ${f.status==="QUAR"?"selected":""}>QUARANTINE</option><option value="REJ" ${f.status==="REJ"?"selected":""}>REJECT</option><option value="PEND" ${f.status==="PEND"?"selected":""}>Awaiting verifier</option><option value="NO2E" ${f.status==="NO2E"?"selected":""}>Missing CCTV view test (2e)</option></select></div>`:`<div></div>`}</div>`}
 function statusSelect(hasNg){return `<div class="field"><label for="v-status">Final status (set by verifier)</label><select id="v-status"><option value="">Select status…</option><option value="PASS" ${hasNg?"disabled":""}>PASS (FG)${hasNg?" – not allowed, NG found":""}</option><option value="QUARANTINE">QUARANTINE</option><option value="REJECT">REJECT</option></select></div>`}
 function verifyView(){
   const u=me().username;const list=S.insp.filter(i=>!i.verified);
@@ -1015,6 +1019,18 @@ function extraFor(i,k,o){
   if(o.scan==="cctvId"&&i.cctvPw)parts.push(`PW: <span class="mono">${esc(i.cctvPw)}</span>`);
   return parts.join(" · ");
 }
+function addOnHtml(i){
+  const s=me();
+  const done=i.addOnAt?`<section class="sheet note-addon"><div class="small"><b>B2e CCTV view test</b> was added after the inspection by <b>${esc(i.addOnName||i.addOnBy)}</b> on ${dt(i.addOnAt)}. Result: <span class="rbadge ${i.results?.["B-2e"]==="NG"?"ng":"ok"}">${esc(i.results?.["B-2e"]||"–")}</span></div></section>`:"";
+  if(Number(i.cl)!==3||!(s.role==="verifier"||s.role==="admin"))return done;
+  if(S.backendV<8)return `<section class="sheet"><div class="warn small">To add CCTV view test to this record, the admin must update Code.gs to version 8 first.</div></section>`;
+  return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px" id="addon-box">
+    <div class="spread"><h3>Add new item: B2e CCTV view test</h3><span class="autotag">NEW ITEM</span></div>
+    <p class="small muted" style="margin:0">This unit was checked before CCTV view test was added to the checklist. Test it now and record the result. Items B2e–B2g on this record move to B2f–B2h. ${i.status==="PASS"?"If you choose NG, the status changes from PASS to <b>QUARANTINE</b> and the unit goes to the rework list.":""}</p>
+    <div class="seg" role="group" aria-label="CCTV view test result"><button type="button" data-act="addon-res" data-v="OK" aria-pressed="false">OK</button><button type="button" data-act="addon-res" data-v="NG" aria-pressed="false">NG</button></div>
+    <div class="field"><label for="addon-rem">Remark (required for NG)</label><input type="text" id="addon-rem" placeholder="e.g. No video on P.Circle app"></div>
+    <div class="err" id="addon-err" aria-live="polite"></div>
+    <div class="row"><button class="btn primary" type="button" data-act="addon-save" data-id="${esc(i.id)}" id="addon-btn">Save CCTV view test</button></div></section>`}
 function detailView(){
   const i=S.insp.find(x=>x.id===S.detail);if(!i){S.detail=null;return viewHtml()}
   const s=me(),canVerify=!i.verified&&(s.role==="verifier"||s.role==="admin")&&i.checkedBy!==s.username,hasNg=(i.ngItems||[]).length>0;
@@ -1042,6 +1058,7 @@ function detailView(){
     ${i.overall?`<div class="field"><span class="lbl">Overall remarks</span><div>${esc(i.overall)}</div></div>`:""}
     <div class="signoff"><div class="col"><span class="lbl">Checked by</span>${i.paper?`<div><b>${esc(i.checkedName)}</b></div><div class="small muted">${dmy(i.day)} · signed on paper checklist</div><div class="small muted">Keyed in by ${esc(i.keyedName||i.checkedBy)}</div>`:`${i.checkSignature?`<img class="sigimg" src="${esc(i.checkSignature)}" alt="Signature of ${esc(i.checkedName)}">`:""}<div><b>${esc(i.checkedName)}</b> <span class="small muted mono">(${esc(i.checkedBy)})</span></div><div class="small muted">${dt(i.checkedAt)}</div>`}</div>
     <div class="col"><span class="lbl">Verified by</span>${i.verified?`<img class="sigimg" src="${esc(i.signature)}" alt="Signature of ${esc(i.verifiedName)}"><div><b>${esc(i.verifiedName)}</b> <span class="small muted mono">(${esc(i.verifiedBy)})</span></div><div class="small muted">${dt(i.verifiedAt)}</div><div class="small">Status: <b>${esc(statusText(i.status))}</b></div>${i.verifyComment?`<div class="small">${esc(i.verifyComment)}</div>`:""}`:`<div class="small muted">${i.checkedBy===s.username&&s.role!=="staff"?"You checked this unit, so another verifier must sign it.":"Not verified yet."}</div>`}</div></div></section>
+  ${addOnHtml(i)}
   ${canVerify?`<section class="sheet" style="display:flex;flex-direction:column;gap:12px"><h3>Set status and verify</h3>
     ${statusSelect(hasNg)}
     <canvas id="pad" class="pad" aria-label="Signature pad"></canvas>
@@ -1387,6 +1404,12 @@ document.addEventListener("click",async e=>{
     case"back":S.detail=null;PAD=null;$("#view").innerHTML=viewHtml();afterRender();break;
     case"sel":t.checked?S.sel.add(t.dataset.id):S.sel.delete(t.dataset.id);if($("#v-btn"))$("#v-btn").textContent=`Verify ${S.sel.size} selected`;break;
     case"selall":document.querySelectorAll('[data-act="sel"]').forEach(c=>{c.checked=t.checked;t.checked?S.sel.add(c.dataset.id):S.sel.delete(c.dataset.id)});if($("#v-btn"))$("#v-btn").textContent=`Verify ${S.sel.size} selected`;break;
+    case"addon-res":document.querySelectorAll('[data-act="addon-res"]').forEach(b=>b.setAttribute("aria-pressed",b===t));break;
+    case"addon-save":{const err=$("#addon-err"),sel=document.querySelector('[data-act="addon-res"][aria-pressed="true"]'),rem=($("#addon-rem")?.value||"").trim();err.textContent="";
+      if(!sel){err.textContent="Choose OK or NG.";break}if(sel.dataset.v==="NG"&&!rem){err.textContent="Write a remark for the NG result.";$("#addon-rem").focus();break}
+      t.disabled=true;t.textContent="Saving…";
+      try{const r=await api("addCheck",{id:t.dataset.id,result:sel.dataset.v,remark:rem});await loadData(true);$("#view").innerHTML=viewHtml();afterRender();toast(`CCTV view test saved: ${sel.dataset.v}${r.status==="QUARANTINE"&&sel.dataset.v==="NG"?" · status now QUARANTINE":""}`)}
+      catch(er){err.textContent=dbErr(er);t.disabled=false;t.textContent="Save CCTV view test"}break}
     case"padclear":PAD?.clear();break;
     case"cpadclear":CPAD?.clear();break;
     case"verifysel":verify([...S.sel],$("#v-err"),t);break;
