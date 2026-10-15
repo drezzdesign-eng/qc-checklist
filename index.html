@@ -394,7 +394,7 @@ function itemOf(i,k){const c=Number(i&&i.cl);return (c>=4?ITEM:c===3?ITEM_V3:c==
 const SCAN_LABEL={findId:"Charging pile ID",warrantySeal:"Warranty seal no.",pileId:"Charging pile ID",nameplateId:"Nameplate ID",boxId:"Packaging box ID",cctvId:"CCTV ID"};
 function normId(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
 function idsMatch(a,b){a=normId(a);b=normId(b);if(!a||!b)return false;if(a===b)return true;return Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))}
-const NOCCTV_DEP=["B-1l","B-2f"],AUTO_REM_NOCCTV="No CCTV QR sticker on unit";
+const NOCCTV_DEP=["B-1l","B-2e","B-2f"],AUTO_REM_NOCCTV="No CCTV QR sticker on unit";
 function applyAutos(f){
   ITEMS.forEach(it=>{const o=it.opt,k=it.key;
     if(o.scan==="cctvId"&&o.auto){if(f.noCctv){f.cctvId="";f.res[k]="NG";if(!(f.rem[k]||"").trim()||f.rem[k]===AUTO_REM_CCTV)f.rem[k]=AUTO_REM_NOCCTV;return}if(f.rem[k]===AUTO_REM_NOCCTV)delete f.rem[k]}
