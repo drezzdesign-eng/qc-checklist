@@ -346,7 +346,7 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 <div class="toast" id="toast" hidden></div>
 
 <script>
-const APP_VERSION="v4.3",APP_DATE="15/10/2026";
+const APP_VERSION="v4.4",APP_DATE="15/10/2026";
 /* ---------- checklist definition ---------- */
 const SECTIONS_V1=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
@@ -397,8 +397,9 @@ const SECTIONS=[
 function flatItems(secs){const out=[];secs.forEach(s=>s.groups.forEach(g=>g.items.forEach(([c,t,o])=>out.push({key:s.ltr+"-"+c,code:s.ltr+c,text:t,opt:o||{},group:s.ltr+g.n+" "+g.title}))));return out}
 const ITEMS=flatItems(SECTIONS),ITEMS_V3=flatItems(SECTIONS_V3),ITEMS_V2=flatItems(SECTIONS_V2),ITEMS_V1=flatItems(SECTIONS_V1);
 const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i])),ITEM_V3=Object.fromEntries(ITEMS_V3.map(i=>[i.key,i])),ITEM_V2=Object.fromEntries(ITEMS_V2.map(i=>[i.key,i])),ITEM_V1=Object.fromEntries(ITEMS_V1.map(i=>[i.key,i]));
-function secFor(i){const c=Number(i&&i.cl);return c>=4?SECTIONS:c===3?SECTIONS_V3:c===2?SECTIONS_V2:SECTIONS_V1}
-function itemOf(i,k){const c=Number(i&&i.cl);return (c>=4?ITEM:c===3?ITEM_V3:c===2?ITEM_V2:ITEM_V1)[k]}
+function clOf(i){const c=Number(i&&i.cl),r=(i&&i.results)||{};return c===4&&!i.addOnAt&&("B-2g" in r)&&!("B-2h" in r)?3:c}
+function secFor(i){const c=clOf(i);return c>=4?SECTIONS:c===3?SECTIONS_V3:c===2?SECTIONS_V2:SECTIONS_V1}
+function itemOf(i,k){const c=clOf(i);return (c>=4?ITEM:c===3?ITEM_V3:c===2?ITEM_V2:ITEM_V1)[k]}
 const SCAN_LABEL={findId:"Charging pile ID",warrantySeal:"Warranty seal no.",pileId:"Charging pile ID",nameplateId:"Nameplate ID",boxId:"Packaging box ID",cctvId:"CCTV ID"};
 function normId(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
 function idsMatch(a,b){a=normId(a);b=normId(b);if(!a||!b)return false;if(a===b)return true;return Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))}
@@ -524,7 +525,7 @@ async function mockApi(action,p){
       const row={...d,checkSec:d.checkSec===""?"":+d.checkSec,id:"n"+Date.now(),batchNo:b.batchNo,ngItems:ng,status:"PENDING",checkedBy:me.username,checkedName:d.paper?d.paperChecker:me.name,checkedAt:d.paper?new Date(d.paperDate+"T12:00:00+08:00").toISOString():t.toISOString(),day:d.paper?d.paperDate:ymd(t),verified:false,keyedBy:d.paper?me.username:"",keyedName:d.paper?me.name:"",keyedAt:d.paper?t.toISOString():""};delete row.paperDate;delete row.paperChecker;M.insp.push(row);return ok({id:row.id,status:row.status})}
     case"verify":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");if(!["PASS","QUARANTINE","REJECT"].includes(p.status))return fail("Select the final status.");let n=0,sk=0;const t=new Date().toISOString();
       M.insp.forEach(i=>{if(!p.ids.includes(i.id))return;if(i.verified||i.checkedBy===me.username||(p.status==="PASS"&&(i.ngItems||[]).length)){sk++;return}Object.assign(i,{verifySec:i.paper?"":Math.round((Date.now()-new Date(i.checkedAt).getTime())/1000),verified:true,status:p.status,verifiedBy:me.username,verifiedName:me.name,verifiedAt:t,signature:p.signature,verifyComment:p.comment||""});n++});return ok({verified:n,skipped:sk})}
-    case"addCheck":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");const i=M.insp.find(x=>x.id===p.id);if(!i)return fail("Inspection not found.");if(Number(i.cl)!==3)return fail("This record already has CCTV view test, or it uses an older checklist.");
+    case"addCheck":{if(!need(["verifier","admin"]))return fail("Your role cannot do this.");const i=M.insp.find(x=>x.id===p.id);if(!i)return fail("Inspection not found.");if(clOf(i)!==3)return i.addOnAt?ok({already:true,status:i.status}):fail("This record uses an older checklist, so CCTV view test cannot be added.");
       if(p.result==="NG"&&!(p.remark||"").trim())return fail("Write a remark for the NG result.");const mv=k=>({"B-2e":"B-2f","B-2f":"B-2g","B-2g":"B-2h"})[k]||k;const nr={},nm={};Object.keys(i.results||{}).forEach(k=>nr[mv(k)]=i.results[k]);Object.keys(i.remarks||{}).forEach(k=>nm[mv(k)]=i.remarks[k]);
       i.ngItems=(i.ngItems||[]).map(mv);nr["B-2e"]=p.result;if(p.result==="NG"){nm["B-2e"]=p.remark.trim();i.ngItems.push("B-2e");if(i.status==="PASS")i.status="QUARANTINE"}Object.assign(i,{cl:4,results:nr,remarks:nm,addOnBy:me.username,addOnName:me.name,addOnAt:new Date().toISOString()});return ok({status:i.status})}
     case"changePin":if(me.pin!==String(p.oldPin))return fail("Current PIN is not correct.");me.pin=String(p.newPin);return ok({});
@@ -605,7 +606,7 @@ async function start(){
   TOKEN=(DEMO?"":ls("czqc-token"))||"";
   try{
     const p=await api("ping");
-    S.backendV=DEMO?8:(p.version||1);
+    S.backendV=DEMO?9:(p.version||1);
     if(VIEW_KEY){if(!DEMO&&S.backendV<3){S.phase="error";S.err="This view-only link needs the latest Google Sheet script. Ask the admin to update Code.gs.";render();return}
       S.phase="ready";setSession({username:"",name:"Management view",role:"viewer"});render();await loadData();return}
     if(!p.setup){S.phase="setup";render();return}
@@ -973,7 +974,7 @@ async function decodeQR(file){
 /* ---------- records ---------- */
 
 
-function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="QUAR"&&isQuar(i))||(f.status==="REJ"&&i.status==="REJECT")||(f.status==="PEND"&&!i.verified)||(f.status==="NO2E"&&Number(i.cl)===3)))}
+function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="QUAR"&&isQuar(i))||(f.status==="REJ"&&i.status==="REJECT")||(f.status==="PEND"&&!i.verified)||(f.status==="NO2E"&&clOf(i)===3)))}
 function filterBar(withStatus){const f=S.filt;return `<div class="grid4">
   <div class="field"><label for="ft-from">From</label><input type="date" id="ft-from" data-filt="from" value="${f.from}"></div>
   <div class="field"><label for="ft-to">To</label><input type="date" id="ft-to" data-filt="to" value="${f.to}"></div>
@@ -1022,8 +1023,8 @@ function extraFor(i,k,o){
 function addOnHtml(i){
   const s=me();
   const done=i.addOnAt?`<section class="sheet note-addon"><div class="small"><b>B2e CCTV view test</b> was added after the inspection by <b>${esc(i.addOnName||i.addOnBy)}</b> on ${dt(i.addOnAt)}. Result: <span class="rbadge ${i.results?.["B-2e"]==="NG"?"ng":"ok"}">${esc(i.results?.["B-2e"]||"–")}</span></div></section>`:"";
-  if(Number(i.cl)!==3||!(s.role==="verifier"||s.role==="admin"))return done;
-  if(S.backendV<8)return `<section class="sheet"><div class="warn small">To add CCTV view test to this record, the admin must update Code.gs to version 8 first.</div></section>`;
+  if(clOf(i)!==3||!(s.role==="verifier"||s.role==="admin"))return done;
+  if(S.backendV<9)return `<section class="sheet"><div class="warn small">To add CCTV view test to this record, the admin must update Code.gs to version 9 first.</div></section>`;
   return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px" id="addon-box">
     <div class="spread"><h3>Add new item: B2e CCTV view test</h3><span class="autotag">NEW ITEM</span></div>
     <p class="small muted" style="margin:0">This unit was checked before CCTV view test was added to the checklist. Test it now and record the result. Items B2e–B2g on this record move to B2f–B2h. ${i.status==="PASS"?"If you choose NG, the status changes from PASS to <b>QUARANTINE</b> and the unit goes to the rework list.":""}</p>
@@ -1408,8 +1409,8 @@ document.addEventListener("click",async e=>{
     case"addon-save":{const err=$("#addon-err"),sel=document.querySelector('[data-act="addon-res"][aria-pressed="true"]'),rem=($("#addon-rem")?.value||"").trim();err.textContent="";
       if(!sel){err.textContent="Choose OK or NG.";break}if(sel.dataset.v==="NG"&&!rem){err.textContent="Write a remark for the NG result.";$("#addon-rem").focus();break}
       t.disabled=true;t.textContent="Saving…";
-      try{const r=await api("addCheck",{id:t.dataset.id,result:sel.dataset.v,remark:rem});await loadData(true);$("#view").innerHTML=viewHtml();afterRender();toast(`CCTV view test saved: ${sel.dataset.v}${r.status==="QUARANTINE"&&sel.dataset.v==="NG"?" · status now QUARANTINE":""}`)}
-      catch(er){err.textContent=dbErr(er);t.disabled=false;t.textContent="Save CCTV view test"}break}
+      try{const r=await api("addCheck",{id:t.dataset.id,result:sel.dataset.v,remark:rem});await loadData(true);$("#view").innerHTML=viewHtml();afterRender();toast(r.already?"CCTV view test was already saved for this unit":`CCTV view test saved: ${sel.dataset.v}${r.status==="QUARANTINE"&&sel.dataset.v==="NG"?" · status now QUARANTINE":""}`)}
+      catch(er){const msg=dbErr(er);await loadData(true);$("#view").innerHTML=viewHtml();afterRender();const e2=$("#addon-err");if(e2)e2.textContent=msg;else toast(msg)}break}
     case"padclear":PAD?.clear();break;
     case"cpadclear":CPAD?.clear();break;
     case"verifysel":verify([...S.sel],$("#v-err"),t);break;
