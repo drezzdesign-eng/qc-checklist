@@ -329,7 +329,8 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 .appver{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--bg);box-shadow:var(--in-sm);color:var(--accent);font-family:var(--f-mono);font-size:11px;letter-spacing:0;text-transform:none}
 .updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:25;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px);padding:12px 16px;border-radius:16px;background:var(--bg);color:var(--ink);box-shadow:var(--out-lg);font-size:14px}
 @media print{.updbar{display:none}}
-.note-addon{padding:14px 18px}
+.status.st-miss{background:#7c3aed;color:#fff;box-shadow:var(--out-sm)}
+@media print{.status.st-miss{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .appver-line{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .appver-line b{font-family:var(--f-mono);color:var(--accent)}
 @media print{.appver{box-shadow:none;border:1px solid #cbd5e1}}
@@ -346,7 +347,7 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 <div class="toast" id="toast" hidden></div>
 
 <script>
-const APP_VERSION="v4.4",APP_DATE="15/10/2026";
+const APP_VERSION="v4.5",APP_DATE="15/10/2026";
 /* ---------- checklist definition ---------- */
 const SECTIONS_V1=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
@@ -425,7 +426,7 @@ function cctvBoxHtml(v){const parts=cctvParts(v);if(!parts.length)return"";const
 function isAuto(o){return !!(o&&(o.led||o.input||(o.scan&&(o.match||o.auto))))}
 const STATUS_INFO={PASS:["st-pass","PASS · FG"],QUARANTINE:["st-hold","QUARANTINE"],REJECT:["st-rej","REJECT"],"ON HOLD":["st-hold","ON HOLD"]};
 
-function statusPill(i){const s=STATUS_INFO[i.status];return s?`<span class="status ${s[0]}">${s[1]}</span>`:'<span class="status st-pending">AWAITING VERIFIER</span>'}
+function statusPill(i){if(i.status==="PASS"&&clOf(i)===3)return '<span class="status st-miss" title="CCTV view test (B2e) not done yet">MISSING 2e</span>';const s=STATUS_INFO[i.status];return s?`<span class="status ${s[0]}">${s[1]}</span>`:'<span class="status st-pending">AWAITING VERIFIER</span>'}
 function fmtDur(sec){if(sec===""||sec==null)return"–";sec=Math.round(Number(sec));if(!(sec>=0))return"–";const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return h?`${h}h ${String(m).padStart(2,"0")}m`:`${m}m ${String(x).padStart(2,"0")}s`}
 function clock(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return (h?h+":"+String(m).padStart(2,"0"):String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0")}
 function waitSec(i){const st=i.paper?i.keyedAt:i.checkedAt;return st?(Date.now()-new Date(st).getTime())/1000:NaN;return i.checkedAt?(Date.now()-new Date(i.checkedAt).getTime())/1000:NaN}
@@ -974,7 +975,7 @@ async function decodeQR(file){
 /* ---------- records ---------- */
 
 
-function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS")||(f.status==="QUAR"&&isQuar(i))||(f.status==="REJ"&&i.status==="REJECT")||(f.status==="PEND"&&!i.verified)||(f.status==="NO2E"&&clOf(i)===3)))}
+function applyFilt(list,withStatus=true){const f=S.filt;return list.filter(i=>(!f.from||i.day>=f.from)&&(!f.to||i.day<=f.to)&&(!f.batch||i.batchId===f.batch)&&(!withStatus||!f.status||(f.status==="PASS"&&i.status==="PASS"&&clOf(i)!==3)||(f.status==="QUAR"&&isQuar(i))||(f.status==="REJ"&&i.status==="REJECT")||(f.status==="PEND"&&!i.verified)||(f.status==="NO2E"&&clOf(i)===3)))}
 function filterBar(withStatus){const f=S.filt;return `<div class="grid4">
   <div class="field"><label for="ft-from">From</label><input type="date" id="ft-from" data-filt="from" value="${f.from}"></div>
   <div class="field"><label for="ft-to">To</label><input type="date" id="ft-to" data-filt="to" value="${f.to}"></div>
@@ -1013,6 +1014,7 @@ async function verify(ids,errEl,btn){
 }
 function extraFor(i,k,o){
   o=o||{};const parts=[];
+  if(k==="B-2e"&&i.addOnAt)parts.push(`Added later by ${esc(i.addOnName||i.addOnBy)} · ${dt(i.addOnAt)}`);
   if(o.input&&i.sealNA)parts.push(`<b style="color:var(--hold)">Seal not applied – major defect</b>`);
   else if(o.input&&i[o.input])parts.push(`Seal no.: <span class="mono"><b>${esc(i[o.input])}</b></span>`);
   if(o.led&&i[o.led])parts.push(`Light: <b>${esc(i[o.led])}</b>`);
@@ -1022,7 +1024,7 @@ function extraFor(i,k,o){
 }
 function addOnHtml(i){
   const s=me();
-  const done=i.addOnAt?`<section class="sheet note-addon"><div class="small"><b>B2e CCTV view test</b> was added after the inspection by <b>${esc(i.addOnName||i.addOnBy)}</b> on ${dt(i.addOnAt)}. Result: <span class="rbadge ${i.results?.["B-2e"]==="NG"?"ng":"ok"}">${esc(i.results?.["B-2e"]||"–")}</span></div></section>`:"";
+  const done="";
   if(clOf(i)!==3||!(s.role==="verifier"||s.role==="admin"))return done;
   if(S.backendV<9)return `<section class="sheet"><div class="warn small">To add CCTV view test to this record, the admin must update Code.gs to version 9 first.</div></section>`;
   return `<section class="sheet" style="display:flex;flex-direction:column;gap:12px" id="addon-box">
@@ -1227,7 +1229,7 @@ async function makePdf(i){
   secFor(i).forEach(sec=>{brk(6);d.setFillColor(223,231,241);d.rect(L,y,R-L,6,"F");d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(29,79,145);d.text(sec.ltr+".  "+sec.title,L+2,y+4.2);y+=6;d.setTextColor(20);
     sec.groups.forEach(g=>{brk(5.5);d.setFont("helvetica","bold");d.setFontSize(8.5);d.text(g.n+". "+g.title,L+14,y+3.9);y+=5.5;line(y);
       g.items.forEach(([c,t,o])=>{o=o||{};const k=sec.ltr+"-"+c,v=i.results?.[k]||"-";
-        let rm=i.remarks?.[k]||"",full="";
+        let rm=i.remarks?.[k]||"",full="";if(k==="B-2e"&&i.addOnAt)rm=(rm?rm+" · ":"")+"Added later by "+(i.addOnName||i.addOnBy)+" "+dt(i.addOnAt);
         if(o.input&&i.sealNA)rm="Seal not applied – major defect"+(rm?" · "+rm:"");else if(o.input&&i[o.input])rm="Seal no.: "+i[o.input]+(rm?" · "+rm:"");
         if(o.led&&i[o.led])rm="Light: "+i[o.led]+(rm?" · "+rm:"");
         let fullLines=null;
