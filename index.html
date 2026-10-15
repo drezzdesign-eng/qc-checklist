@@ -347,7 +347,7 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 <div class="toast" id="toast" hidden></div>
 
 <script>
-const APP_VERSION="v4.5",APP_DATE="15/10/2026";
+const APP_VERSION="v4.6",APP_DATE="15/10/2026";
 /* ---------- checklist definition ---------- */
 const SECTIONS_V1=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
@@ -651,7 +651,7 @@ function shell(){
   const s=me();
   const tabs=TABS[s.role].map(([k,l])=>`<button type="button" role="tab" data-act="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}${k==="verify"?`<span class="badge" id="badge-verify" ${pendingCount()?"":"hidden"}>${pendingCount()}</span>`:""}</button>`).join("");
   return `<header class="sheet" style="display:flex;flex-direction:column;gap:12px;padding-bottom:0">
-    <div class="bar"><div class="brandrow"><img class="brandlogo" src="${LOGO_PNG}" alt="C Zero Sdn Bhd"><div class="brand"><div class="co">Quality Control <span class="appver" title="App version, updated ${APP_DATE}">${APP_VERSION}</span></div><h1>AC Charger QC Inspection</h1></div></div>
+    <div class="bar"><div class="brandrow"><img class="brandlogo" src="${LOGO_PNG}" alt="C Zero Sdn Bhd"><div class="brand"><div class="co">Quality Control <span class="appver" title="App version, updated ${APP_DATE}">${APP_VERSION}</span><span class="appver" title="Google Sheet script (Code.gs) version">Server v${DEMO?"demo":S.backendV||"?"}</span></div><h1>AC Charger QC Inspection</h1></div></div>
     <div class="who"><div style="text-align:right"><div><b>${esc(s.name)}</b></div><div class="small muted mono">${esc(s.username)}</div></div><span class="role">${ROLES[s.role]}</span>${DEMO?'<span class="status demo-tag">DEMO</span>':""}<button class="btn sm" type="button" data-act="refresh" title="Load the latest records">Refresh</button>${s.role==="viewer"?`<a class="btn sm" href="${location.pathname}${DEMO?"#demo":""}" data-act="stafflogin">Staff log in</a>`:`<button class="btn sm" type="button" data-act="tab" data-tab="pin">PIN</button><button class="btn sm" type="button" data-act="logout">Log out</button>`}</div></div>
     ${s.role==="viewer"?`<div class="readonly"><span class="status st-pending">VIEW ONLY</span> You can view the dashboard, records and PDFs. Nothing can be changed from this link.</div>`:""}
     ${S.backendV<2&&s.role!=="viewer"?`<div class="warn"><b>Update needed:</b> the Google Sheet script is an older version, so new inspections cannot be submitted yet. ${s.role==="admin"?"Paste the new Code.gs into Apps Script and deploy a new version.":"Ask the admin to update the system."}</div>`:""}
@@ -674,7 +674,7 @@ function loginView(){return `<form class="sheet login" id="login-form">
   ${brandHead()}
   ${DEMO?`<div class="note"><b>DEMO MODE.</b> Sample data only. Changes reset when you reload.</div><div class="field"><span class="lbl">Quick login</span><div class="row">${DEMO_USERS.map(([u,p,n,r])=>`<button type="button" class="btn sm" data-act="demologin" data-u="${u}" data-p="${p}">${ROLES[r]}: ${u}</button>`).join("")}<a class="btn sm" href="#demo-view" data-act="demoview">View-only link (no login)</a></div></div>`:""}
   <p class="muted small">Log in with the username and PIN given by your admin. </p>
-  <div class="appver-line">App version <b>${APP_VERSION}</b> · updated ${APP_DATE}</div>
+  <div class="appver-line">App version <b>${APP_VERSION}</b> · updated ${APP_DATE} · Server <b>v${DEMO?"demo":S.backendV||"?"}</b></div>
   <div class="field"><label for="l-user">Username</label><input type="text" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
   <div class="field"><label for="l-pin">PIN</label><input type="password" id="l-pin" inputmode="numeric" autocomplete="current-password" maxlength="8"></div>
   <div class="err" id="l-err" aria-live="polite"></div>
