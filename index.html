@@ -362,7 +362,7 @@ const SECTIONS_V2=[
   {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","LCD touch screen display working properly"],["1c","WiFi connection"],["1d","OCPP URL (correct server URL)"],["1e","Status light function and any light leaking"],["1f","Logo light function and any light leaking"],["1g","Ambient light function and any light leaking"],["1h","RFID charging mode test"],["1i","Plug & charge mode test"],["1j","CCTV indication light",{led:"led"}],["1k","CCTV ID",{scan:"cctvId",auto:true}],["1l","CCTV QR sticker condition"]]},
   {n:"2",title:"P.Circle App",note:"Reminder: the P.Circle app must be UNBOUND from the charger after app testing is complete.",items:[["2a","P.Circle app BIND to charger test"],["2b","P.Circle app start charging test"],["2c","P.Circle app stop charging test"],["2d","P.Circle app bind to CCTV function test"],["2e","CCTV QR sticker matches CCTV unit ID"],["2f","P.Circle app UNBIND from charger"],["2g","CCTV indication light after UNBIND",{led:"led2"}]]},
   {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]}];
-const SECTIONS=[
+const SECTIONS_V3=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
   {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
   {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
@@ -374,15 +374,27 @@ const SECTIONS=[
   {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]},
  {ltr:"C",title:"WARRANTY",groups:[
   {n:"1",title:"Warranty",items:[["1a","Warranty seal number",{input:"warrantySeal"}]]}]}];
+const SECTIONS=[
+ {ltr:"A",title:"APPEARANCE CHECK",groups:[
+  {n:"1",title:"Enclosure",items:[["1a","Painting finishing"],["1b","Screws complete and tight"],["1c","Logo, status light & ambient light laser-cut finishing"]]},
+  {n:"2",title:"Decorative Panel",items:[["2a","Water transfer printing finishing"],["2b","Panel fixed properly in position"]]},
+  {n:"3",title:"LCD",items:[["3a","Protective screen condition"],["3b","LCD touch screen condition"]]},
+  {n:"4",title:"Nameplate",items:[["4a","Nameplate fixed properly"],["4b","Nameplate ID matches charging pile ID",{scan:"nameplateId",match:true}],["4c","Packaging box ID matches charging pile ID",{scan:"boxId",match:true}]]}]},
+ {ltr:"B",title:"FUNCTIONS CHECK",groups:[
+  {n:"1",title:"Charger Unit",items:[["1a","Power on"],["1b","LCD touch screen display working properly"],["1c","WiFi connection"],["1d","OCPP URL (correct server URL)"],["1e","Status light function and any light leaking"],["1f","Logo light function and any light leaking"],["1g","Ambient light function and any light leaking"],["1h","RFID charging mode test"],["1i","Plug & charge mode test"],["1j","CCTV indication light",{led:"led"}],["1k","CCTV ID",{scan:"cctvId",auto:true}],["1l","CCTV QR sticker condition"]]},
+  {n:"2",title:"P.Circle App",note:"Reminder: the P.Circle app must be UNBOUND from the charger after app testing is complete.",items:[["2a","P.Circle app BIND to charger test"],["2b","P.Circle app start charging test"],["2c","P.Circle app stop charging test"],["2d","P.Circle app bind to CCTV function test"],["2e","CCTV view test"],["2f","CCTV QR sticker matches CCTV unit ID"],["2g","P.Circle app UNBIND from charger"],["2h","CCTV indication light after UNBIND",{led:"led2"}]]},
+  {n:"3",title:"Installation Accessories & Documents",items:[["3a","Wall mount bracket"],["3b","Wall mount screw pack"],["3c","User manual"]]}]},
+ {ltr:"C",title:"WARRANTY",groups:[
+  {n:"1",title:"Warranty",items:[["1a","Warranty seal number",{input:"warrantySeal"}]]}]}];
 function flatItems(secs){const out=[];secs.forEach(s=>s.groups.forEach(g=>g.items.forEach(([c,t,o])=>out.push({key:s.ltr+"-"+c,code:s.ltr+c,text:t,opt:o||{},group:s.ltr+g.n+" "+g.title}))));return out}
-const ITEMS=flatItems(SECTIONS),ITEMS_V2=flatItems(SECTIONS_V2),ITEMS_V1=flatItems(SECTIONS_V1);
-const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i])),ITEM_V2=Object.fromEntries(ITEMS_V2.map(i=>[i.key,i])),ITEM_V1=Object.fromEntries(ITEMS_V1.map(i=>[i.key,i]));
-function secFor(i){const c=Number(i&&i.cl);return c>=3?SECTIONS:c===2?SECTIONS_V2:SECTIONS_V1}
-function itemOf(i,k){const c=Number(i&&i.cl);return (c>=3?ITEM:c===2?ITEM_V2:ITEM_V1)[k]}
+const ITEMS=flatItems(SECTIONS),ITEMS_V3=flatItems(SECTIONS_V3),ITEMS_V2=flatItems(SECTIONS_V2),ITEMS_V1=flatItems(SECTIONS_V1);
+const ITEM=Object.fromEntries(ITEMS.map(i=>[i.key,i])),ITEM_V3=Object.fromEntries(ITEMS_V3.map(i=>[i.key,i])),ITEM_V2=Object.fromEntries(ITEMS_V2.map(i=>[i.key,i])),ITEM_V1=Object.fromEntries(ITEMS_V1.map(i=>[i.key,i]));
+function secFor(i){const c=Number(i&&i.cl);return c>=4?SECTIONS:c===3?SECTIONS_V3:c===2?SECTIONS_V2:SECTIONS_V1}
+function itemOf(i,k){const c=Number(i&&i.cl);return (c>=4?ITEM:c===3?ITEM_V3:c===2?ITEM_V2:ITEM_V1)[k]}
 const SCAN_LABEL={findId:"Charging pile ID",warrantySeal:"Warranty seal no.",pileId:"Charging pile ID",nameplateId:"Nameplate ID",boxId:"Packaging box ID",cctvId:"CCTV ID"};
 function normId(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"")}
 function idsMatch(a,b){a=normId(a);b=normId(b);if(!a||!b)return false;if(a===b)return true;return Math.min(a.length,b.length)>=6&&(a.includes(b)||b.includes(a))}
-const NOCCTV_DEP=["B-1l","B-2e"],AUTO_REM_NOCCTV="No CCTV QR sticker on unit";
+const NOCCTV_DEP=["B-1l","B-2f"],AUTO_REM_NOCCTV="No CCTV QR sticker on unit";
 function applyAutos(f){
   ITEMS.forEach(it=>{const o=it.opt,k=it.key;
     if(o.scan==="cctvId"&&o.auto){if(f.noCctv){f.cctvId="";f.res[k]="NG";if(!(f.rem[k]||"").trim()||f.rem[k]===AUTO_REM_CCTV)f.rem[k]=AUTO_REM_NOCCTV;return}if(f.rem[k]===AUTO_REM_NOCCTV)delete f.rem[k]}
@@ -655,7 +667,7 @@ function setupView(){
 
 /* ---------- staff: new inspection ---------- */
 
-function blankForm(){return{paper:false,paperDate:"",paperChecker:"",paperVerifier:"",noCctv:false,warrantySeal:"",sealNA:false,reworkOf:"",batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},nameplateId:"",boxId:"",cctvId:"",cctvPw:"",led:"",led2:"",overall:"",reinspect:false}}
+function blankForm(){return{v:4,paper:false,paperDate:"",paperChecker:"",paperVerifier:"",noCctv:false,warrantySeal:"",sealNA:false,reworkOf:"",batchId:"",pileId:"",pileMethod:"scan",panel:"",res:{},rem:{},nameplateId:"",boxId:"",cctvId:"",cctvPw:"",led:"",led2:"",overall:"",reinspect:false}}
 function formView(){
   const f=S.form,s=me();
   const sections=SECTIONS.map(sec=>`<section class="sheet"><div class="sec-h"><span class="ltr">${sec.ltr}.</span><h2>${sec.title}</h2></div>`+
@@ -774,7 +786,7 @@ async function submitForm(){
   const rem={};Object.keys(f.rem).forEach(k=>{if(ITEM[k]&&f.rem[k]&&f.rem[k].trim())rem[k]=f.rem[k].trim()});
   const res={};ITEMS.forEach(i=>res[i.key]=f.res[i.key]);
   if(S.backendV<6)return err.textContent="The system is being updated. Ask the admin to update the Google Sheet script (Code.gs), then submit again.";
-  const doc={sealNA:!!f.sealNA,reworkOf:f.reworkOf||"",warrantySeal:f.sealNA?"":(f.warrantySeal||"").trim(),cl:3,batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
+  const doc={sealNA:!!f.sealNA,reworkOf:f.reworkOf||"",warrantySeal:f.sealNA?"":(f.warrantySeal||"").trim(),cl:4,batchId:f.batchId,batchNo:b?.batchNo||"",pileId:pid,product:PRODUCT,model:b?.model||MODEL,panel:f.panel,
     results:res,remarks:rem,ngItems:ng,status:"PENDING",nameplateId:f.nameplateId.trim(),boxId:f.boxId.trim(),cctvId:f.cctvId.trim(),cctvPw:"",
     led:f.led,led2:f.led2,pileMethod:f.pileMethod==="key"?"key":"scan",overall:f.overall.trim(),reinspect:!!(dup&&f.reinspect),checkSignature:f.paper?"":CPAD.data(),checkStartedAt:f.paper?"":f.startedAt||"",checkSec:!f.paper&&f.startedAt?Math.round((Date.now()-new Date(f.startedAt).getTime())/1000):"",
     paper:!!f.paper,paperDate:f.paper?f.paperDate:"",paperChecker:f.paper?f.paperChecker.trim():"",paperVerifier:f.paper?(f.paperVerifier||"").trim():""};
@@ -786,7 +798,7 @@ async function submitForm(){
 }
 
 function draftKey(){return"czqc-draft-"+(me()?.username||"")}
-function loadDraft(){let f=null;try{f=JSON.parse(ls(draftKey())||"null")}catch(e){}S.form=Object.assign(blankForm(),f||{})}
+function loadDraft(){let f=null;try{f=JSON.parse(ls(draftKey())||"null")}catch(e){}if(f&&f.v!==4){["res","rem"].forEach(o=>{const m=f[o];if(!m)return;["B-2g","B-2f","B-2e"].forEach(k=>{if(k in m){m["B-2"+String.fromCharCode(k.charCodeAt(3)+1)]=m[k];delete m[k]}})})}S.form=Object.assign(blankForm(),f||{});S.form.v=4}
 function saveDraft(){ls(draftKey(),JSON.stringify(S.form))}
 function batchOptions(sel){return `<option value="">Select batch…</option>`+S.batches.filter(b=>b.open!==false).map(b=>`<option value="${esc(b.id)}" ${b.id===sel?"selected":""}>${esc(b.batchNo)} · ${b.incomingQty} units · ${dmy(b.receivedDate)}</option>`).join("")}
 
@@ -1225,7 +1237,7 @@ async function makeSummaryPdf(){
   const ngU=list.filter(i=>(i.ngItems||[]).length),ngCount=ngU.reduce((a,i)=>a+i.ngItems.length,0),rein=list.filter(i=>i.reinspect||i.reworkOf).length;
   const bIds=S.filt.batch?[S.filt.batch]:[...new Set(list.map(i=>i.batchId))],bmap=Object.fromEntries(S.batches.map(b=>[b.id,b]));
   const incoming=bIds.reduce((a,id)=>a+(+bmap[id]?.incomingQty||0),0);
-  const secT={};[SECTIONS_V1,SECTIONS_V2,SECTIONS].forEach(ss=>ss.forEach(s=>secT[s.ltr]=s.title));
+  const secT={};[SECTIONS_V1,SECTIONS_V2,SECTIONS_V3,SECTIONS].forEach(ss=>ss.forEach(s=>secT[s.ltr]=s.title));
   const bySec={},byGrp={},byItem={};
   ngU.forEach(i=>{const secSeen=new Set();i.ngItems.forEach(k=>{const it=itemOf(i,k)||{code:k,text:k,group:k};const ltr=String(k).split("-")[0];
     const s=bySec[ltr]||(bySec[ltr]={ltr,title:secT[ltr]||ltr,n:0,units:0});s.n++;if(!secSeen.has(ltr)){s.units++;secSeen.add(ltr)}
@@ -1312,7 +1324,7 @@ async function exportCsv(){
   const list=applyFilt(S.insp,S.tab!=="dash");
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const head=["Inspection date","Checked at","Batch","Charging pile ID","Model","Panel","Status","NG count","NG items","Re-inspection","Checked by","Verified","Verified by","Verified at","Nameplate ID","Box ID","Warranty seal no.","Seal not applied","Rework of","CCTV ID","CCTV SN","CCTV DT","CCTV SC","CCTV light","CCTV light after unbind","Pile ID input","Checklist version","Check started","Checking time (sec)","Verify time (sec)","Total time (sec)","Paper record","Verified on paper by","Keyed in by","Keyed in at",...ITEMS.map(i=>i.code)];
-  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.warrantySeal||"",i.sealNA?"Yes":"",i.reworkOf?(S.insp.find(x=>x.id===i.reworkOf)||{}).checkedAt?dt((S.insp.find(x=>x.id===i.reworkOf)||{}).checkedAt):"Yes":"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)===2?"v2":"v1",i.checkStartedAt?dt(i.checkStartedAt):"",i.checkSec??"",i.verifySec??"",isNaN(totalSec(i))?"":totalSec(i),i.paper?"Yes":"",i.paperVerifier||"",i.keyedName||"",i.keyedAt?dt(i.keyedAt):"",...ITEMS.map(t=>Number(i.cl)>=2?(i.results?.[t.key]||""):"")]);
+  const rows=list.map(i=>[i.day,dt(i.checkedAt),i.batchNo,i.pileId,i.model,i.panel,statusText(i.status),(i.ngItems||[]).length,(i.ngItems||[]).map(k=>{const it=itemOf(i,k);return it?it.code+" "+it.text:k}).join("; "),i.reinspect?"Yes":"",i.checkedName,i.verified?"Yes":"No",i.verifiedName||"",i.verifiedAt?dt(i.verifiedAt):"",i.nameplateId||"",i.boxId||"",i.warrantySeal||"",i.sealNA?"Yes":"",i.reworkOf?(S.insp.find(x=>x.id===i.reworkOf)||{}).checkedAt?dt((S.insp.find(x=>x.id===i.reworkOf)||{}).checkedAt):"Yes":"",i.cctvId||"",parseCctv(i.cctvId).SN||"",parseCctv(i.cctvId).DT||"",parseCctv(i.cctvId).SC||"",i.led||"",i.led2||"",i.pileMethod==="key"?"Key in":"Scan",Number(i.cl)>=2?"v"+Number(i.cl):"v1",i.checkStartedAt?dt(i.checkStartedAt):"",i.checkSec??"",i.verifySec??"",isNaN(totalSec(i))?"":totalSec(i),i.paper?"Yes":"",i.paperVerifier||"",i.keyedName||"",i.keyedAt?dt(i.keyedAt):"",...ITEMS.map(t=>Number(i.cl)>=2?(i.results?.[t.key]||""):"")]);
   const csv="﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`QC_records_${S.filt.from||"all"}_${S.filt.to||"all"}.csv`;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("CSV downloaded")
 }
