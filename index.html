@@ -327,6 +327,8 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
   .sheet{break-inside:avoid}
 }
 .appver{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--bg);box-shadow:var(--in-sm);color:var(--accent);font-family:var(--f-mono);font-size:11px;letter-spacing:0;text-transform:none}
+.updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:25;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px);padding:12px 16px;border-radius:16px;background:var(--bg);color:var(--ink);box-shadow:var(--out-lg);font-size:14px}
+@media print{.updbar{display:none}}
 .appver-line{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .appver-line b{font-family:var(--f-mono);color:var(--accent)}
 @media print{.appver{box-shadow:none;border:1px solid #cbd5e1}}
@@ -343,7 +345,7 @@ svg rect[fill="var(--ng)"]{fill:var(--f-ng)}
 <div class="toast" id="toast" hidden></div>
 
 <script>
-const APP_VERSION="v4.1",APP_DATE="15/10/2026";
+const APP_VERSION="v4.2",APP_DATE="15/10/2026";
 /* ---------- checklist definition ---------- */
 const SECTIONS_V1=[
  {ltr:"A",title:"APPEARANCE CHECK",groups:[
@@ -566,6 +568,21 @@ async function loadData(quiet){
 }
 function startPolling(){clearInterval(POLL);POLL=setInterval(()=>{if(document.visibilityState==="visible")loadData(true)},45000)}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.session)loadData(true)});
+
+/* ---------- update check: tells the user when a newer version is online ---------- */
+async function checkUpdate(){
+  if(DEMO||!/^https?:/.test(location.protocol))return;
+  try{
+    const r=await fetch(location.pathname+"?check="+Date.now(),{cache:"no-store"});if(!r.ok)return;
+    const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);if(!m||m[1]===APP_VERSION||$("#upd-bar"))return;
+    const b=document.createElement("div");b.id="upd-bar";b.className="updbar";b.setAttribute("role","status");
+    b.innerHTML=`<span>New version <b>${esc(m[1])}</b> is available (you have ${esc(APP_VERSION)}).</span><button type="button" class="btn primary sm" id="upd-go">Update now</button>`;
+    document.body.append(b);
+    $("#upd-go").onclick=()=>{try{saveDraft()}catch(e){}location.replace(location.pathname+"?v="+Date.now()+location.hash)};
+  }catch(e){}
+}
+setTimeout(checkUpdate,4000);setInterval(()=>{if(document.visibilityState==="visible")checkUpdate()},10*60*1000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checkUpdate()});
 
 /* ---------- boot ---------- */
 (async function boot(){
